@@ -1,6 +1,6 @@
 # Einmalige Einrichtung auf dem VPS
 
-Gilt für re:chase nach dem VPS-Standard. `rechase.example.com` überall durch die echte Domain ersetzen. Je Codeblock genau ein Befehl.
+Gilt für re:chase (`rechase.konnerths.de`) nach dem VPS-Standard. Je Codeblock genau ein Befehl.
 
 ## 1. DNS
 
@@ -64,7 +64,7 @@ ssh-keyscan -p 22 85.190.98.62
 
 ## 5. nginx und TLS
 
-Inhalt von `deploy/nginx/rechase` (mit echter Domain) nach `/etc/nginx/sites-available/rechase` kopieren, z. B. mit:
+Inhalt von `deploy/nginx/rechase` nach `/etc/nginx/sites-available/rechase` kopieren, z. B. mit:
 
 ```bash
 sudo nano /etc/nginx/sites-available/rechase
@@ -83,7 +83,7 @@ sudo systemctl reload nginx
 ```
 
 ```bash
-sudo certbot --nginx -d rechase.example.com
+sudo certbot --nginx -d rechase.konnerths.de
 ```
 
 ## 6. Erster Deploy
@@ -91,5 +91,5 @@ sudo certbot --nginx -d rechase.example.com
 PR mergen oder in GitHub unter Actions → Deploy → „Run workflow“ starten. Danach prüfen:
 
 ```bash
-curl -s https://rechase.example.com/healthz
+curl -s https://rechase.konnerths.de/healthz
 ```

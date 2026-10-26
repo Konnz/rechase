@@ -1,10 +1,9 @@
-# rechase.example.com: Container rechase-app auf 127.0.0.1:3150.
-# Domain vor dem Einrichten anpassen (server_name).
+# rechase.konnerths.de: Container rechase-app auf 127.0.0.1:3150.
 # certbot --nginx ergänzt den TLS-Teil und die Weiterleitung von HTTP.
 server {
     listen 80;
     listen [::]:80;
-    server_name rechase.example.com;
+    server_name rechase.konnerths.de;
 
     client_max_body_size 10m;
 

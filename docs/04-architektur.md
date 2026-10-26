@@ -10,7 +10,7 @@ Deployment folgt dem Standard für alle Apps auf dem VPS (`85.190.98.62`): Build
 Handy (PWA)                                VPS 85.190.98.62
 ┌──────────────────────────┐               ┌──────────────────────────────────────────┐
 │ UI, Karte (MapLibre)     │    HTTPS      │ nginx + certbot (vorhanden, Host)        │
-│ packages/core            │ ────────────► │   <domain> → 127.0.0.1:3150              │
+│ packages/core            │ ────────────► │   rechase.konnerths.de → 127.0.0.1:3150  │
 │ IndexedDB (Fahrten)      │               ├──────────────────────────────────────────┤
 │ Service Worker (Cache)   │               │ Compose-Stack "rechase" (/opt/rechase)   │
 └──────────────────────────┘               │  rechase-app   Node-Server, Port 3000    │
