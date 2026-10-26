@@ -79,6 +79,8 @@ Siehe Dateien `Dockerfile`, `compose.yaml`, `deploy/update.sh`, `.github/workflo
 
 Rollback von Hand: `sudo -u rechase /opt/rechase/update.sh <voller-commit-sha>`
 
+Einmalige Einrichtung auf dem VPS: [deploy/EINRICHTUNG.md](../deploy/EINRICHTUNG.md)
+
 ## Betrieb
 
 - Backups (ab R2): nächtliches `pg_dump`, 14 Tage aufbewahren, zusätzlich extern kopieren.
