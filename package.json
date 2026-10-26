@@ -1,0 +1,25 @@
+{
+  "name": "rechase",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @rechase/web",
+    "build": "npm run build -w @rechase/web && node scripts/build-server.mjs",
+    "start": "node build",
+    "test": "vitest run",
+    "check": "tsc -p packages/core && tsc -p apps/server && npm run check -w @rechase/web"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

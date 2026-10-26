@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Figuren-Varianten</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#0D0F12}
+</style>
+</helmet>
+<div style="width: 1328px; height: 480px; box-sizing: border-box; padding: 40px; background: #0D0F12; color: #F2F4F7; font-family: 'Barlow', system-ui, sans-serif; display: flex; flex-direction: column; gap: 24px;">
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 34px; font-weight: 700; line-height: 1.1;">Figuren-Varianten</h1>
+    <p style="margin: 0; font-size: 15px; color: #9AA3AF;">Du vorne im Bild, deine Bestzeit als Ghost voraus</p>
+  </div>
+  <div style="display: flex; gap: 24px;">
+    <sc-for list="{{variants}}" as="item" hint-placeholder-count="4">
+      <div style="width: 294px; flex-shrink: 0; background: #171A1F; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="position: relative; width: 294px; height: 240px; background: #111418;">
+          <svg aria-hidden="true" width="294" height="240" viewBox="0 0 294 240" style="position: absolute; left: 0; top: 0;">
+            <rect x="0" y="30" width="294" height="210" fill="#14171B"></rect>
+            <path d="M40,240 L132,30 L162,30 L254,240 Z" fill="#20242B"></path>
+            <path d="M147,240 L147,30" fill="none" stroke="#F2F4F7" stroke-opacity="0.3" stroke-width="2.5" stroke-dasharray="14 10"></path>
+          </svg>
+          <div style="position: absolute; left: 140px; top: 66px; width: 30px; height: 42px;">
+            <dc-import name="Figur" variant="{{item.id}}" ghost="{{yes}}" color="{{ghost}}" hint-size="30px,42px"></dc-import>
+          </div>
+          <div style="position: absolute; left: 132px; top: 144px; width: 56px; height: 78px;">
+            <dc-import name="Figur" variant="{{item.id}}" ghost="{{no}}" color="{{you}}" hint-size="56px,78px"></dc-import>
+          </div>
+        </div>
+        <div style="padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 18px; font-weight: 600;">{{item.title}}</span>
+          <span style="font-size: 14px; color: #9AA3AF;">{{item.sub}}</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"youColor":{"editor":"color","default":"#FF7A1A","options":["#FF7A1A","#E8FF4A","#FF5C8A"],"section":"Farben"},"ghostColor":{"editor":"color","default":"#A9C1FF","options":["#A9C1FF","#7FE3FF","#D7D9E0"],"section":"Farben"},"$preview":{"width":1328,"height":480}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      you: this.props.youColor ?? '#FF7A1A',
+      ghost: this.props.ghostColor ?? '#A9C1FF',
+      yes: true,
+      no: false,
+      variants: [
+        { id: 'pfeil', title: 'A · Pfeil', sub: 'Klar und ruhig, wie im Navi' },
+        { id: 'licht', title: 'B · Lichtpunkt', sub: 'Leuchtkugel mit Spur, Spiel-Look' },
+        { id: 'plakette', title: 'C · Plakette', sub: 'DU gegen BZ, sofort lesbar' },
+        { id: 'fahrer', title: 'D · Rennfahrer', sub: 'Überarbeitete Silhouette in Aerohaltung' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
