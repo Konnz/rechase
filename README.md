@@ -9,6 +9,7 @@ Tracking-App für Radfahrer, bei der man Bestzeiten auf bekannten Strecken live 
 - [Produktkonzept](docs/01-konzept.md)
 - [PWA-Machbarkeit](docs/02-pwa-machbarkeit.md): Was kann eine Web-App beim Tracking, was nicht?
 - [Backlog](docs/03-backlog.md): Epics, User Stories, MVP und später
+- [Architektur und Deployment](docs/04-architektur.md): VPS, Monorepo, Komponenten je Release
 - [Design-Referenzen](design/README.md): Mockups und Design-Tokens
 
 ## Status
