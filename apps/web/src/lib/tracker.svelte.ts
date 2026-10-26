@@ -1,5 +1,6 @@
 import { MotionTracker, type MotionSample, type TrackPoint } from '@rechase/core';
 import { saveRide, type StoredRide } from './db.ts';
+import type { LatLon } from './map/LiveMap.svelte';
 
 type Status = 'idle' | 'starting' | 'recording' | 'stopped' | 'error';
 
@@ -19,6 +20,8 @@ export class RideRecorder {
   gaps = $state(0);
   rejected = $state(0);
   points = $state(0);
+  /** Gefahrene Spur für die Karte, nur Punkte in Bewegung (keine Drift an der Ampel) */
+  track = $state.raw<LatLon[]>([]);
 
   private motion = new MotionTracker();
   private ride: StoredRide | null = null;
@@ -36,6 +39,7 @@ export class RideRecorder {
     this.motion = new MotionTracker();
     this.current = null;
     this.lastRaw = null;
+    this.track = [];
     this.hiddenCount = this.gaps = this.rejected = this.points = 0;
     this.ride = {
       id: crypto.randomUUID(),
@@ -96,6 +100,7 @@ export class RideRecorder {
     if (sample) {
       ride.samples.push(sample);
       this.current = sample;
+      if (sample.moving) this.track = [...this.track, { lat: sample.lat, lon: sample.lon }];
     }
     this.gaps = ride.gaps = this.motion.gaps;
     this.rejected = ride.rejected = this.motion.rejected;

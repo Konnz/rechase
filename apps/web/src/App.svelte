@@ -3,10 +3,13 @@
   import { deleteRide, listRides, requestPersistence, type StoredRide } from './lib/db.ts';
   import { download, toCsv, toGpx } from './lib/export.ts';
   import { fmtDate, fmtDuration, fmtInt, fmtKm, fmtKmh } from './lib/format.ts';
+  import LiveMap from './lib/map/LiveMap.svelte';
+  import MapView from './lib/map/MapView.svelte';
   import { RideRecorder } from './lib/tracker.svelte.ts';
 
   const rec = new RideRecorder();
   let rides = $state<StoredRide[]>([]);
+  let showMap = $state(false);
 
   const active = $derived(rec.status === 'starting' || rec.status === 'recording');
   const cur = $derived(rec.current);
@@ -41,6 +44,9 @@
   onMount(refresh);
 </script>
 
+{#if showMap}
+  <MapView {rec} onclose={() => (showMap = false)} />
+{:else}
 <main>
   <header>
     <span class="dot" class:on={active} aria-hidden="true"></span>
@@ -90,6 +96,13 @@
     </div>
   </section>
 
+  {#if active || rec.track.length}
+    <button class="minimap" aria-label="Karte im Folgemodus öffnen" onclick={() => (showMap = true)}>
+      <LiveMap position={cur} track={rec.track} mini />
+      <span class="maplabel">Karte</span>
+    </button>
+  {/if}
+
   <section class="diag" aria-label="Technische Werte">
     <span>GPS ±{fmtInt(rec.lastRaw?.accuracy)} m</span>
     <span>Bildschirm wach: {rec.wakeLock}</span>
@@ -134,6 +147,7 @@
     </section>
   {/if}
 </main>
+{/if}
 
 <style>
   main {
@@ -241,6 +255,29 @@
     font-size: 42px;
     font-weight: 600;
     line-height: 1;
+  }
+  .minimap {
+    position: relative;
+    height: 150px;
+    padding: 0;
+    border: 0;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .maplabel {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    background: rgba(13, 15, 18, 0.82);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
   .diag {
     display: flex;
