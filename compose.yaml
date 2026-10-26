@@ -1,0 +1,35 @@
+# re:chase auf dem VPS: eigener Stack "rechase" neben den anderen Apps.
+# Werte kommen aus /opt/rechase/.env. Auf dem VPS wird nichts gebaut, nur das fertige Image aus GHCR geladen.
+name: rechase
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+services:
+  app:
+    image: ${APP_IMAGE:-ghcr.io/konnz/rechase}:${APP_TAG:-latest}
+    container_name: rechase-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3000
+    ports:
+      # Nur an 127.0.0.1: allein nginx auf demselben Rechner kommt heran. Ohne das wäre der Port trotz Firewall offen.
+      - '127.0.0.1:${APP_HOST_PORT:-3150}:3000'
+    volumes:
+      - data:/data
+    labels:
+      # Für das Hub-Dashboard: Anzeigename und Health-Pfad.
+      hub.name: 're:chase'
+      hub.health: '/healthz'
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *logging
+
+volumes:
+  data:

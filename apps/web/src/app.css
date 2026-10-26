@@ -1,0 +1,33 @@
+/* Design-Tokens aus design/README.md */
+:root {
+  --bg: #0d0f12;
+  --surface: #171a1f;
+  --surface-2: #111418;
+  --line: #22262d;
+  --text: #f2f4f7;
+  --muted: #9aa3af;
+  --you: #ff7a1a;
+  --ghost: #a9c1ff;
+  --rec: #ff453a;
+  --font-num: 'Barlow Condensed', system-ui, sans-serif;
+  --font-text: 'Barlow', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+}
