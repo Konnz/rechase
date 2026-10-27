@@ -19,6 +19,11 @@ export interface StoredRide {
   routeTime?: number | null;
   /** Gefahrenes Rad; bestimmt die Wertungsklasse (fehlt bei Fahrten vor dem Onboarding) */
   bike?: BikeType;
+  /**
+   * Widerspruch des Fahrers gegen die Plausibilitätsprüfung: Die Fahrt zählt dann für die eigenen Bestzeiten.
+   * Öffentliche Ghosts prüft später der Server.
+   */
+  appealedAt?: number;
 }
 
 /** Eine gemerkte Strecke mit ihrer Bestzeit. Der Ghost wird bei Bedarf aus der Bestzeit-Fahrt berechnet. */

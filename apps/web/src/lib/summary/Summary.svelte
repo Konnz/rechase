@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { rideStats, speedSegments } from '@rechase/core';
+  import { BIKE_CLASS_LABELS, bikeInfo, rideStats, speedSegments, type BikeType } from '@rechase/core';
   import { onMount } from 'svelte';
   import type { StoredRide, StoredRoute } from '../db.ts';
   import { toGpx } from '../export.ts';
   import { fmtDate, fmtDuration, fmtGapSeconds, fmtInt, fmtKm, fmtKmh } from '../format.ts';
-  import type { RideResult } from '../routes.ts';
+  import BikePicker from '../account/BikePicker.svelte';
+  import { rideCheck, rideCounts, type RideResult } from '../routes.ts';
   import { shareFile } from './share.ts';
   import { renderShareImage } from './shareImage.ts';
   import { SPEED_GRADIENT } from './speedColor.ts';
@@ -17,6 +18,7 @@
     simulated = false,
     sectionPrs = 0,
     onsave,
+    onamend,
     onclose,
   }: {
     ride: StoredRide;
@@ -29,6 +31,8 @@
     sectionPrs?: number;
     /** Merkt die Fahrt als Strecke; liefert die neue Strecke oder null bei Abbruch */
     onsave: (ride: StoredRide) => Promise<StoredRoute | null>;
+    /** Rad korrigieren oder der Plausibilitätsprüfung widersprechen */
+    onamend: (ride: StoredRide, change: Pick<StoredRide, 'bike' | 'appealedAt'>) => Promise<StoredRide>;
     onclose: () => void;
   } = $props();
 
@@ -36,6 +40,9 @@
   const MIN_ROUTE_M = 200;
 
   const stats = $derived(rideStats(ride.samples));
+  const check = $derived(rideCheck(ride));
+  const counts = $derived(rideCounts(ride));
+  let pickBike = $state(false);
   const speed = $derived(speedSegments(ride.samples));
   let saved = $state.raw<StoredRoute | null>(null);
   const onRoute = $derived(saved ?? route);
@@ -69,6 +76,17 @@
         saved = r;
         say(`Als „${r.name}“ gespeichert · ab jetzt dein Ghost`);
       }
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function amend(change: Pick<StoredRide, 'bike' | 'appealedAt'>, msg: string) {
+    busy = true;
+    try {
+      const updated = await onamend(ride, change);
+      pickBike = false;
+      say(rideCounts(updated) ? msg : 'Passt auch mit diesem Rad nicht');
     } finally {
       busy = false;
     }
@@ -112,6 +130,10 @@
           <span class="label">{result.route.name}</span>
           <span class="headline">Strecke nicht zu Ende gefahren</span>
           <span class="what">Gewertet wird nur, wer vom Start bis ins Ziel fährt.</span>
+        {:else if !result.counted}
+          <span class="label">{result.route.name}</span>
+          <span class="headline">Nicht gewertet</span>
+          <span class="what">{fmtDuration(result.time)} bewegt · zählt nicht für Bestzeit und Ghost</span>
         {:else}
           {@const delta = (result.time - result.previousBest) / 1000}
           <span class="label">{result.route.name}</span>
@@ -126,6 +148,51 @@
           <span class="what prs">
             {sectionPrs} {sectionPrs === 1 ? 'Abschnitts-PR' : 'Abschnitts-PRs'} · +{sectionPrs * 20} Punkte
           </span>
+        {/if}
+      </section>
+    {/if}
+
+    {#if !simulated && ride.endedAt && !check.ok}
+      <section class="check" class:open={!counts} aria-live="polite">
+        {#if counts}
+          <span class="label">Plausibilität</span>
+          <span class="what">
+            Auffällig für {BIKE_CLASS_LABELS[check.bikeClass]}, nach deinem Widerspruch für deine Bestzeiten gewertet.
+            Für öffentliche Wertungen zählt sie erst nach einer Prüfung.
+          </span>
+        {:else}
+          <span class="label">Passt nicht zu {ride.bike ? bikeInfo(ride.bike).label : 'einem Fahrrad'}</span>
+          <ul>
+            {#each check.flags as f (f.rule)}
+              <li>{f.message}</li>
+            {/each}
+          </ul>
+          <span class="what">
+            {#if check.suggestion === 'none'}
+              Das sieht nach Auto oder Bahn aus. Vielleicht lief die Aufnahme nach der Radfahrt weiter?
+            {:else if check.suggestion}
+              Mit {BIKE_CLASS_LABELS[check.suggestion]} wäre die Fahrt plausibel.
+            {/if}
+            Sie bleibt gespeichert, zählt aber nicht für Bestzeiten und Ghosts.
+          </span>
+          {#if pickBike}
+            <BikePicker
+              value={ride.bike ?? null}
+              onchange={(b: BikeType) => amend({ bike: b }, `Als ${bikeInfo(b).label} gewertet`)}
+            />
+          {/if}
+          <div class="row">
+            <button class="secondary" disabled={busy} aria-expanded={pickBike} onclick={() => (pickBike = !pickBike)}>
+              Rad ändern
+            </button>
+            <button
+              class="secondary"
+              disabled={busy}
+              onclick={() => amend({ appealedAt: Date.now() }, 'Widerspruch gespeichert · Fahrt zählt')}
+            >
+              Ich war mit dem Rad unterwegs
+            </button>
+          </div>
         {/if}
       </section>
     {/if}
@@ -178,12 +245,14 @@
       {:else if !simulated}
         <button
           class="cta"
-          disabled={busy || !ride.endedAt || stats.distance < MIN_ROUTE_M}
+          disabled={busy || !ride.endedAt || stats.distance < MIN_ROUTE_M || !counts}
           onclick={save}
         >
           Strecke speichern
         </button>
-        {#if stats.distance < MIN_ROUTE_M}
+        {#if !counts}
+          <span class="note">Erst wenn die Fahrt gewertet wird, kann sie Ghost einer Strecke sein.</span>
+        {:else if stats.distance < MIN_ROUTE_M}
           <span class="note">Zu kurz für eine Strecke</span>
         {:else}
           <span class="note">Beim nächsten Mal fährst du gegen diese Fahrt als Ghost.</span>
@@ -358,6 +427,29 @@
   .prs {
     color: var(--you);
     font-weight: 600;
+  }
+  .check {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .check.open {
+    border: 1.5px solid var(--rec);
+  }
+  .check .secondary {
+    background: #22262d;
+  }
+  .check ul {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 15px;
+    line-height: 1.35;
   }
   .actions {
     display: flex;
