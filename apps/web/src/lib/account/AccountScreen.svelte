@@ -43,7 +43,7 @@
   }
 </script>
 
-<div class="screen">
+<div class="acct">
   {#if mode === 'welcome'}
     <h1>Willkommen bei re:chase</h1>
     <p>

@@ -36,7 +36,7 @@
   }
 </script>
 
-<div class="screen">
+<div class="acct">
   <h1>Fast startklar</h1>
   <p>Zwei Angaben, dann geht’s los. Beides kannst du später im Profil ändern.</p>
 

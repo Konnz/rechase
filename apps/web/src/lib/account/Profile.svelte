@@ -53,7 +53,7 @@
   }
 </script>
 
-<div class="screen">
+<div class="acct">
   <button class="back" onclick={onclose}>‹ Zurück</button>
   <h1>Profil</h1>
   {#if user}
