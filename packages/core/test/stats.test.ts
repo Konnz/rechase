@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MotionTracker } from '../src/motion.ts';
-import { rideStats, speedSegments } from '../src/stats.ts';
+import { rideStats, speedProfile } from '../src/stats.ts';
 import type { MotionSample, TrackPoint } from '../src/types.ts';
 import { ride } from './helpers.ts';
 
@@ -55,17 +55,26 @@ describe('rideStats', () => {
   });
 });
 
-describe('speedSegments', () => {
-  it('färbt langsame und schnelle Abschnitte unterschiedlich', () => {
-    const { segments, min, max } = speedSegments(track(ride([...Array(40).fill(15), ...Array(40).fill(40)])));
-    expect(min).toBeLessThan(max);
-    expect(segments.at(0)!.level).toBe(0);
-    expect(segments.at(-1)!.level).toBe(1);
-    // Abschnitte schließen lückenlos aneinander an
-    for (let i = 1; i < segments.length; i++) expect(segments[i]!.coords[0]).toEqual(segments[i - 1]!.coords.at(-1));
+describe('speedProfile', () => {
+  it('färbt langsam nach schnell stufenlos ein', () => {
+    const p = speedProfile(track(ride([...Array(40).fill(15), ...Array(40).fill(40)])));
+    expect(p.min).toBeLessThan(p.max);
+    expect(p.levels.length).toBe(p.coords.length);
+    expect(p.levels.at(1)).toBeCloseTo(0);
+    expect(p.levels.at(-1)).toBe(1);
+    // Kein harter Sprung: der Wechsel verteilt sich über mehrere Punkte
+    const jumps = p.levels.slice(1).map((l, i) => Math.abs(l - p.levels[i]!));
+    expect(Math.max(...jumps)).toBeLessThan(0.2);
+  });
+
+  it('liefert den Streckenanteil von 0 bis 1', () => {
+    const p = speedProfile(track(ride(Array(30).fill(25))));
+    expect(p.progress[0]).toBe(0);
+    expect(p.progress.at(-1)).toBe(1);
+    expect(p.progress.every((x, i) => i === 0 || x >= p.progress[i - 1]!)).toBe(true);
   });
 
   it('ist leer ohne Bewegung', () => {
-    expect(speedSegments(track(ride(Array(10).fill(0)))).segments).toEqual([]);
+    expect(speedProfile(track(ride(Array(10).fill(0)))).coords).toEqual([]);
   });
 });

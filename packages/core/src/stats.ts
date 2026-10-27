@@ -135,57 +135,55 @@ function windowMax(v: readonly number[], run: readonly MotionSample[]): number {
   return best;
 }
 
-export interface SpeedSegment {
-  /** Koordinaten als [lon, lat], direkt für GeoJSON */
+export interface SpeedProfile {
+  /** Spur in Bewegung als [lon, lat], direkt für GeoJSON */
   coords: [number, number][];
-  /** 0 = langsam, 1 = schnell, relativ zur Fahrt */
-  level: number;
-  /** Mittlere Geschwindigkeit des Abschnitts in m/s */
-  speed: number;
+  /** Tempo je Punkt zwischen 0 (langsam) und 1 (schnell), stufenlos und relativ zur Fahrt */
+  levels: number[];
+  /** Anteil der Strecke je Punkt zwischen 0 und 1, passend zu MapLibres line-progress */
+  progress: number[];
+  /** Grenzen der Skala in m/s */
+  min: number;
+  max: number;
 }
 
+/** Über so viele Sekunden um jeden Punkt wird das Tempo gemittelt, damit die Farbe ruhig verläuft. */
+const SPEED_SMOOTH_S = 10;
+
 /**
- * Teilt die Spur in Abschnitte gleicher Tempostufe, damit die Karte sie einfärben kann.
+ * Tempoverlauf der Spur für die eingefärbte Karte: stufenlos und geglättet, damit die Farbe fließend wechselt.
  * Die Skala reicht vom 5. bis zum 95. Perzentil der Fahrt, damit einzelne Ausreißer sie nicht stauchen.
  */
-export function speedSegments(
-  samples: readonly MotionSample[],
-  steps = 8,
-): { segments: SpeedSegment[]; min: number; max: number } {
+export function speedProfile(samples: readonly MotionSample[]): SpeedProfile {
   const moving = samples.filter((s) => s.moving);
-  if (moving.length < 2) return { segments: [], min: 0, max: 0 };
+  if (moving.length < 2) return { coords: [], levels: [], progress: [], min: 0, max: 0 };
 
-  // Leicht glätten, sonst flackert die Farbe von Punkt zu Punkt
-  const smooth = moving.map((_, i) => {
-    const w = moving.slice(Math.max(0, i - 2), i + 3);
-    return w.reduce((s, p) => s + p.speed, 0) / w.length;
-  });
+  // Gleitender Mittelwert über ±SPEED_SMOOTH_S/2, gewichtet mit der Zeit, die jeder Punkt abdeckt
+  const half = (SPEED_SMOOTH_S * 1000) / 2;
+  const smooth: number[] = [];
+  let lo = 0;
+  let hi = 0;
+  for (let i = 0; i < moving.length; i++) {
+    const t = moving[i]!.t;
+    while (moving[lo]!.t < t - half) lo++;
+    while (hi + 1 < moving.length && moving[hi + 1]!.t <= t + half) hi++;
+    let sum = 0;
+    for (let k = lo; k <= hi; k++) sum += moving[k]!.speed;
+    smooth.push(sum / (hi - lo + 1));
+  }
+
   const sorted = [...smooth].sort((a, b) => a - b);
   const q = (f: number) => sorted[Math.min(sorted.length - 1, Math.floor(f * (sorted.length - 1)))]!;
   const min = q(0.05);
   const max = Math.max(q(0.95), min + 0.5);
-  const levelOf = (v: number) => {
-    const x = Math.min(1, Math.max(0, (v - min) / (max - min)));
-    return Math.round(x * (steps - 1)) / (steps - 1);
-  };
 
-  const segments: SpeedSegment[] = [];
-  let seg: SpeedSegment | null = null;
-  let sum = 0;
-  for (let i = 0; i < moving.length; i++) {
-    const p = moving[i]!;
-    const c: [number, number] = [p.lon, p.lat];
-    const level = levelOf(smooth[i]!);
-    if (!seg || seg.level !== level) {
-      if (seg && seg.coords.length > 1) segments.push({ ...seg, speed: sum / seg.coords.length });
-      // Anschluss an den vorigen Abschnitt, damit keine Lücke entsteht
-      seg = { coords: seg ? [seg.coords.at(-1)!, c] : [c], level, speed: 0 };
-      sum = smooth[i]! * seg.coords.length;
-    } else {
-      seg.coords.push(c);
-      sum += smooth[i]!;
-    }
-  }
-  if (seg && seg.coords.length > 1) segments.push({ ...seg, speed: sum / seg.coords.length });
-  return { segments, min, max };
+  const d0 = moving[0]!.distance;
+  const total = moving.at(-1)!.distance - d0;
+  return {
+    coords: moving.map((p) => [p.lon, p.lat]),
+    levels: smooth.map((v) => Math.min(1, Math.max(0, (v - min) / (max - min)))),
+    progress: moving.map((p, i) => (total > 0 ? (p.distance - d0) / total : i / (moving.length - 1))),
+    min,
+    max,
+  };
 }
