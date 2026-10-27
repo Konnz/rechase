@@ -27,6 +27,25 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallbackDenylist: [/^\/healthz/, /^\/api\//],
+        // Gesehene Kartenkacheln bleiben im Cache, damit die Karte im Funkloch weitergeht.
+        runtimeCaching: [
+          {
+            // Stil und TileJSON zeigen auf den neuesten Datenstand: aus dem Cache, im Hintergrund auffrischen
+            urlPattern: /^https:\/\/tiles\.openfreemap\.org\/(styles\/|planet$)/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'map-style' },
+          },
+          {
+            // Kacheln, Schriften, Symbole: die URLs enthalten den Datenstand und ändern sich nicht
+            urlPattern: /^https:\/\/tiles\.openfreemap\.org\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'map-tiles',
+              expiration: { maxEntries: 3000, maxAgeSeconds: 60 * 24 * 3600, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],

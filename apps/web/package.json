@@ -10,7 +10,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings"
   },
   "dependencies": {
-    "@rechase/core": "*"
+    "@rechase/core": "*",
+    "maplibre-gl": "^6.13.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
