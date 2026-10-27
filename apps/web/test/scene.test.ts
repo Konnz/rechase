@@ -40,6 +40,23 @@ describe('Fahransicht', () => {
     expect(place(path, 260).x).toBeGreaterThan(place(path, 0).x);
   });
 
+  it('glättet GPS-Zacken weg', () => {
+    // 600 m nach Norden, alle 5 m abwechselnd 3 m links und rechts daneben
+    const noisy = buildRoute(
+      Array.from({ length: 121 }, (_, i) => ({ lat: 48.1 + (i * 5) / M_PER_DEG, lon: 11.5 + ((i % 2 ? 3 : -3) / (M_PER_DEG * k)) })),
+      0,
+    );
+    const path = routePath(noisy, 200);
+    for (let s = -20; s <= 300; s += 7) expect(Math.abs(path(s).x)).toBeLessThan(0.5);
+  });
+
+  it('hält die Straße auch quer im Bild breit', () => {
+    // Kurz hinter der Ecke läuft die Straße quer: die Ränder liegen dann vor- und hintereinander, nicht nebeneinander
+    const segs = buildRoad(routePath(corner, 250), 250);
+    const across = segs.find((g) => Math.abs(g.road[0][1] - g.road[1][1]) > 0.5);
+    expect(across).toBeDefined();
+  });
+
   it('hebt die Straße bei einem Anstieg an', () => {
     const profile = { distance: [0, 600], alt: [500, 530] };
     const path = routePath(corner, 100, profile);

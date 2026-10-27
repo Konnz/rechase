@@ -37,6 +37,12 @@
   const viewTop = $derived(
     Math.max(SKY_MAX, Math.min(VIEW_TOP, VIEW_BOTTOM - (VIEW_W * sceneH) / Math.max(sceneW, 1))),
   );
+  /** Sichtbarer Rand links in Zeichenkoordinaten; bei hohen Bildschirmen schneidet slice seitlich ab */
+  const visLeft = $derived(
+    Math.max(0, (VIEW_W - (sceneW * (VIEW_BOTTOM - viewTop)) / Math.max(sceneH, 1)) / 2),
+  );
+  /** Linke Kante eines Schildes der Breite w, mittig über x und ganz im Bild */
+  const tagX = (x: number, w: number) => Math.min(VIEW_W - visLeft - w - 4, Math.max(visLeft + 4, x - w / 2));
 
   const css = getComputedStyle(document.documentElement);
   const YOU = css.getPropertyValue('--you').trim() || '#ff7a1a';
@@ -61,6 +67,9 @@
   // Bei kleinem Abstand weicht der Ghost auf die linke Spur aus, damit sich die Figuren nicht verdecken.
   const lane = $derived(ahead >= 12 ? YOU_LANE : ahead <= -2 ? -0.9 : -0.9 + ((ahead + 2) / 14) * (YOU_LANE + 0.9));
   const g = $derived(racing ? place(path, Math.min(ahead, 2000), lane) : null);
+  /** Ghost weit vorn, nur noch winzig oder in einer Kurve außerhalb des Bildes: Hinweis mit Abstand am Horizont */
+  const farAhead = $derived(!!g && ahead > 0 && (g.hidden || g.scale < 0.15 || g.x < 0 || g.x > VIEW_W));
+  const farTag = $derived(`▲ ${short} ${fmtInt(ahead)} m vor dir`);
 
   const trendText = $derived.by(() => {
     const t = duel?.trend;
@@ -124,7 +133,7 @@
           <polygon points={seg.ground.join(' ')} fill="#14171B" stroke="#14171B" stroke-width="1" />
           <polygon points={seg.road.join(' ')} fill="#20242B" stroke="#20242B" stroke-width="1" />
           {#each seg.edges as [a, b]}
-            <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#F2F4F7" stroke-opacity="0.2" stroke-width="1.5" />
+            <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#F2F4F7" stroke-opacity="0.2" stroke-width="1.5" stroke-linecap="round" />
           {/each}
           {#if seg.dash}
             <line x1={seg.dash[0][0]} y1={seg.dash[0][1]} x2={seg.dash[1][0]} y2={seg.dash[1][1]} stroke="#F2F4F7" stroke-opacity="0.35" stroke-width="2.5" />
@@ -137,8 +146,8 @@
             <g class="fig" style:transform="translate({g.x}px, {g.y}px) scale({g.scale})">
               <Figure variant={figure} ghost color={GHOST} x={-FIG_W / 2} y={-FIG_FEET} width={FIG_W} height={YOU_H} />
             </g>
-            <!-- Namensschild über dem Kopf, damit es auch am Bildrand sichtbar bleibt -->
-            <g class="fig" style:transform="translate({Math.min(VIEW_W - tagW(short) - 4, Math.max(4, g.x - tagW(short) / 2))}px, {g.y - FIG_FEET * g.scale - 26}px)">
+            <!-- Namensschild über dem Kopf, damit es auch am Bildrand sichtbar bleibt; weit vorn übernimmt der Hinweis -->
+            <g class="fig" class:gone={farAhead} style:transform="translate({tagX(g.x, tagW(short))}px, {g.y - FIG_FEET * g.scale - 26}px)">
               <rect width={tagW(short)} height="20" rx="7" fill="rgba(13,15,18,0.75)" stroke={GHOST} stroke-width="1.5" stroke-dasharray="4 3" />
               <text x={tagW(short) / 2} y="14.5" text-anchor="middle" font-size="12" font-weight="600" fill={GHOST}>{short}</text>
             </g>
@@ -153,10 +162,16 @@
           </g>
         </g>
         {#if ahead < 0}{@render ghostFig()}{/if}
+        {#if farAhead && g}
+          <g class="fig" style:transform="translate({tagX(g.x, tagW(farTag))}px, {HORIZON_Y - 34}px)">
+            <rect width={tagW(farTag)} height="22" rx="8" fill="rgba(13,15,18,0.85)" stroke={GHOST} stroke-width="1.5" stroke-dasharray="4 3" />
+            <text x={tagW(farTag) / 2} y="15.5" text-anchor="middle" font-size="12" font-weight="600" fill={GHOST}>{farTag}</text>
+          </g>
+        {/if}
       </svg>
       {#if !swapped}
         {#if racing && g?.hidden && ahead < 0}
-          <span class="chip behind">{short} {fmtInt(-ahead)} m hinter dir</span>
+          <span class="chip behind">▼ {short} {fmtInt(-ahead)} m hinter dir</span>
         {/if}
         {#if pr}
           <div class="prpop" role="status">
@@ -347,6 +362,9 @@
     /* Zwischen zwei GPS-Punkten gleitet der Ghost, statt zu springen */
     transition: transform 1s linear;
   }
+  .gone {
+    display: none;
+  }
   .swap {
     position: absolute;
     inset: 0;
@@ -444,6 +462,10 @@
     text-align: center;
   }
   .behind {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    white-space: nowrap;
     bottom: 10px;
     color: var(--ghost);
     border: 1.5px dashed var(--ghost);
