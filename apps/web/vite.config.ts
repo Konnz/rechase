@@ -49,6 +49,10 @@ export default defineConfig({
       },
     }),
   ],
+  // Im Dev-Modus beantwortet der Node-Server (npm start, Port 3000) die API
+  server: {
+    proxy: { '/api': 'http://localhost:3000' },
+  },
   build: {
     outDir: '../../build/public',
     emptyOutDir: true,

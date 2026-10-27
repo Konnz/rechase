@@ -1,0 +1,118 @@
+/* Gemeinsame Optik der Konto-Seiten (Anmelden, Onboarding, Profil) */
+.screen {
+  max-width: 480px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.screen h1 {
+  margin: 8px 0 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+.screen h2 {
+  margin: 10px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.screen p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.screen form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.screen label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.screen input {
+  height: 52px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+}
+.screen input:focus {
+  outline: none;
+  border-color: var(--you);
+}
+.screen .primary,
+.screen .secondary {
+  height: 56px;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.screen .primary {
+  border: 0;
+  background: var(--you);
+  color: var(--bg);
+}
+.screen .secondary {
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+.screen button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.screen .textlink {
+  align-self: center;
+  padding: 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.screen .back {
+  align-self: flex-start;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+.screen .error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #2a1414;
+  color: #ffb4ae;
+}
+.screen .or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.screen .or::before,
+.screen .or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}

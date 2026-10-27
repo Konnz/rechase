@@ -1,6 +1,11 @@
 <script lang="ts">
-  import type { Cue } from '@rechase/core';
+  import { bikeInfo, type Cue } from '@rechase/core';
   import { onMount } from 'svelte';
+  import { account } from './lib/account/account.svelte.ts';
+  import AccountScreen from './lib/account/AccountScreen.svelte';
+  import BikePicker from './lib/account/BikePicker.svelte';
+  import Onboarding from './lib/account/Onboarding.svelte';
+  import Profile from './lib/account/Profile.svelte';
   import {
     deleteRide,
     deleteRoute,
@@ -42,6 +47,36 @@
   /** Ergebnis der letzten Fahrt auf einer Strecke */
   let result = $state.raw<RideResult | { route: StoredRoute; incomplete: true } | null>(null);
   let notice = $state<string | null>(null);
+  /** Konto-Seiten über der Startseite */
+  let accountMode = $state<'welcome' | 'login' | 'register' | null>(null);
+  let screen = $state<'account' | 'onboarding' | 'profile' | null>(null);
+  let pickBike = $state(false);
+
+  function openAccount(mode: 'welcome' | 'login' | 'register') {
+    accountMode = mode;
+    screen = 'account';
+  }
+
+  /** Nach Anmeldung oder Laden: fehlt noch Name oder Rad, kommt das Onboarding. */
+  function afterAccount() {
+    screen = account.user && !account.user.onboarded ? 'onboarding' : null;
+  }
+
+  async function initAccount() {
+    // Rückkehr von der Google-Anmeldung
+    const params = new URLSearchParams(location.search);
+    const outcome = params.get('anmeldung');
+    if (outcome) {
+      params.delete('anmeldung');
+      history.replaceState(null, '', location.pathname + (params.size ? `?${params}` : '') + location.hash);
+      if (outcome === 'fehler') notice = 'Die Anmeldung mit Google hat nicht geklappt. Bitte noch einmal versuchen.';
+    }
+    await account.load();
+    if (account.user) {
+      account.dismissWelcome();
+      afterAccount();
+    } else if (!account.welcomeSeen && !active) openAccount('welcome');
+  }
 
   const GHOST_MODE_KEY = 'rechase.ghostMode';
   const loadGhostMode = (): GhostMode => {
@@ -119,7 +154,7 @@
       sounds.unlock();
       void requestPersistence();
       result = null;
-      await rec.start();
+      await rec.start({ bike: account.bike });
     }
   }
 
@@ -136,6 +171,7 @@
     void requestPersistence();
     const opts: Parameters<RideRecorder['start']>[0] = {
       duel: new Duel(route, opponent, sectionBestsFor(route, rides)),
+      bike: account.bike,
     };
     if (simulate) {
       const best = rides.find((r) => r.id === route.bestRideId);
@@ -202,10 +238,19 @@
     }, 50);
   }
 
-  onMount(refresh);
+  onMount(() => {
+    void refresh();
+    void initAccount();
+  });
 </script>
 
-{#if summary}
+{#if screen === 'account' && accountMode && !active}
+  <AccountScreen bind:mode={accountMode} ondone={afterAccount} />
+{:else if screen === 'onboarding' && !active}
+  <Onboarding ondone={() => (screen = null)} />
+{:else if screen === 'profile' && !active}
+  <Profile onclose={() => (screen = null)} />
+{:else if summary}
   {@const s = summary}
   <Summary
     ride={s.ride}
@@ -236,6 +281,13 @@
       <span class="name">re:chase</span>
       <span class="sub">Tracking-Test · {active ? (rec.status === 'starting' ? 'warte auf GPS …' : 'Aufnahme läuft') : 'bereit'}</span>
     </div>
+    {#if account.user}
+      <button class="me" onclick={() => (screen = account.user?.onboarded ? 'profile' : 'onboarding')}>
+        {account.user.name ?? 'Profil'}
+      </button>
+    {:else if account.loaded}
+      <button class="me" onclick={() => openAccount('login')}>Anmelden</button>
+    {/if}
   </header>
 
   {#if ios && !standalone}
@@ -311,6 +363,28 @@
 
   {#if rec.error}
     <p class="error" role="alert">{rec.error}</p>
+  {/if}
+
+  {#if !active}
+    <div class="bike">
+      <button class="bikechip" aria-expanded={pickBike} onclick={() => (pickBike = !pickBike)}>
+        <span class="modelabel">Rad</span>
+        <strong>{account.bike ? bikeInfo(account.bike).label : 'wählen'}</strong>
+        {#if account.bike && bikeInfo(account.bike).bikeClass !== 'muscle'}
+          <span class="eclass">eigene Wertung</span>
+        {/if}
+        <span class="chev" aria-hidden="true">{pickBike ? '▴' : '▾'}</span>
+      </button>
+      {#if pickBike}
+        <BikePicker
+          value={account.bike}
+          onchange={(b) => {
+            account.setBike(b);
+            pickBike = false;
+          }}
+        />
+      {/if}
+    </div>
   {/if}
 
   <button class="cta" class:stop={active} onclick={toggle}>
@@ -396,7 +470,9 @@
                 {fmtDate(r.startedAt)}{r.endedAt ? '' : ' · unvollständig'}
               </button>
               <span class="what">
-                {fmtKm(last?.distance ?? 0)} km · {fmtDuration(last?.movingTime ?? 0)} bewegt · {r.gaps} Lücken
+                {fmtKm(last?.distance ?? 0)} km · {fmtDuration(last?.movingTime ?? 0)} bewegt{r.bike
+                  ? ` · ${bikeInfo(r.bike).label}`
+                  : ''} · {r.gaps} Lücken
               </span>
               {#if r.routeId && routeById.get(r.routeId)}
                 <span class="what route">
@@ -469,6 +545,48 @@
     align-items: center;
     gap: 12px;
     padding: 0 8px 4px;
+  }
+  .me {
+    margin-left: auto;
+    max-width: 50%;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 18px;
+    border: 1.5px solid var(--line);
+    background: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .bike {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bikechip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 14px;
+    border: 1.5px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .eclass {
+    font-size: 12px;
+    color: #7ad98a;
+  }
+  .chev {
+    margin-left: auto;
+    color: var(--muted);
   }
   .dot {
     width: 10px;

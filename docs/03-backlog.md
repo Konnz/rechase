@@ -173,13 +173,13 @@ Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
 ### Epic E12: Konto und Backend
 | ID | Story | Prio | Größe |
 |---|---|---|---|
-| E12-1 | Als Nutzer will ich mich **mit Google, mit Apple oder manuell** (E-Mail und Passwort) registrieren und anmelden, um teilen und mitspielen zu können. Ohne Konto funktioniert alles lokal weiter. | M | M |
-| E12-5 | Als neuer Nutzer will ich im **Onboarding** meinen Chaser-Namen, mein Standardrad (Rennrad, Gravel, MTB, Trekking, E-Bike bis 25 km/h, S-Pedelec) und meine Privatzonen festlegen. | M | M |
-| E12-6 | Als Fahrer will ich das Rad vor jeder Fahrt mit einem Tipp umstellen können, damit E-Bike-Fahrten getrennt gewertet werden. | M | S |
+| E12-1 | ✅ (E-Mail und Google, Apple fehlt noch) Als Nutzer will ich mich **mit Google, mit Apple oder manuell** (E-Mail und Passwort) registrieren und anmelden, um teilen und mitspielen zu können. Ohne Konto funktioniert alles lokal weiter. | M | M |
+| E12-5 | ✅ (ohne Privatzonen, die kommen mit E11-6) Als neuer Nutzer will ich im **Onboarding** meinen Chaser-Namen, mein Standardrad (Rennrad, Gravel, MTB, Trekking, E-Bike bis 25 km/h, S-Pedelec) und meine Privatzonen festlegen. | M | M |
+| E12-6 | ✅ Als Fahrer will ich das Rad vor jeder Fahrt mit einem Tipp umstellen können, damit E-Bike-Fahrten getrennt gewertet werden. | M | S |
 | E12-2 | Als Nutzer will ich meine Fahrten in die Cloud sichern und auf einem neuen Gerät wiederherstellen. | S | M |
 | E12-3 | Backend: geteilte Ghosts speichern, Links erzeugen, Zugriffsrechte (nur per Link sichtbar). | M | M |
 | E12-4 | Datenschutz: Einwilligung, Löschen des Kontos und aller Daten (DSGVO). | M | S |
-| E12-7 | Technik: Auth-Bibliothek mit Social Login und Passwort (z. B. Better Auth) auf Postgres. Hinweis: „Mit Apple anmelden“ braucht ein Apple-Developer-Konto (99 $/Jahr). | M | M |
+| E12-7 | ✅ Technik: Social Login und Passwort. Umgesetzt ohne Bibliothek (scrypt, Sitzungs-Cookie, Google per OpenID Connect mit PKCE) auf SQLite im Volume `/data`; Umzug nach Postgres, sobald PostGIS gebraucht wird. Hinweis: „Mit Apple anmelden“ braucht ein Apple-Developer-Konto (99 $/Jahr). | M | M |
 
 ### Epic E17: Mehrere Chaser auf einer Strecke
 | ID | Story | Prio | Größe |

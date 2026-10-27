@@ -1,4 +1,4 @@
-import type { LatLon, MotionSample, TrackPoint } from '@rechase/core';
+import type { BikeType, LatLon, MotionSample, TrackPoint } from '@rechase/core';
 
 /** Eine aufgezeichnete Fahrt, wie sie lokal in IndexedDB liegt. */
 export interface StoredRide {
@@ -17,6 +17,8 @@ export interface StoredRide {
   routeId?: string;
   /** Bewegungszeit vom Start- bis zum Zielpunkt der Strecke in ms, null wenn nicht zu Ende gefahren */
   routeTime?: number | null;
+  /** Gefahrenes Rad; bestimmt die Wertungsklasse (fehlt bei Fahrten vor dem Onboarding) */
+  bike?: BikeType;
 }
 
 /** Eine gemerkte Strecke mit ihrer Bestzeit. Der Ghost wird bei Bedarf aus der Bestzeit-Fahrt berechnet. */
