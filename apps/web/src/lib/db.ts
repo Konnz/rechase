@@ -11,6 +11,8 @@ export interface StoredRide {
   gaps: number;
   rejected: number;
   userAgent: string;
+  /** Bezug der Höhen: Meeresspiegel oder WGS84-Ellipsoid (Fahrten vor der Geoid-Korrektur, Android) */
+  altitudeRef?: 'msl' | 'ellipsoid';
   /** Strecke, auf der die Fahrt gefahren wurde (als Duell oder nachträglich erkannt) */
   routeId?: string;
   /** Bewegungszeit vom Start- bis zum Zielpunkt der Strecke in ms, null wenn nicht zu Ende gefahren */
