@@ -46,31 +46,71 @@ export type Path = (s: number) => Local;
 export const straightPath: Path = (s) => ({ x: 0, z: s, h: 0 });
 
 const M_PER_DEG = 111_195;
+/** Abstand der Stützpunkte und Breite der Glättung in m; GPS-Zacken liegen deutlich darunter, echte Kurven darüber */
+const SAMPLE_M = 2;
+const SMOOTH_SIGMA_M = 10;
+/** So weit vor und hinter dem sichtbaren Stück wird mitgeglättet, damit die Ränder nicht ausfransen */
+const MARGIN_M = 3 * SMOOTH_SIGMA_M + 10;
+
+/** Gauß-Kern über die Stützpunkte, an den Enden auf die vorhandenen Punkte beschränkt */
+function gaussSmooth(v: number[]): number[] {
+  const r = Math.ceil((3 * SMOOTH_SIGMA_M) / SAMPLE_M);
+  const w = Array.from({ length: 2 * r + 1 }, (_, i) => Math.exp(-(((i - r) * SAMPLE_M) ** 2) / (2 * SMOOTH_SIGMA_M ** 2)));
+  return v.map((_, i) => {
+    let sum = 0;
+    let ws = 0;
+    for (let k = -r; k <= r; k++) {
+      const j = i + k;
+      if (j < 0 || j >= v.length) continue;
+      sum += v[j] * w[k + r];
+      ws += w[k + r];
+    }
+    return sum / ws;
+  });
+}
 
 /**
  * Straßenverlauf aus der Strecke ab Fortschritt along, ausgerichtet auf die Fahrtrichtung dort.
- * GPS-Zacken werden über ±8 m geglättet; hinter dem Ziel geht es geradeaus weiter.
+ * Die Strecke wird alle 2 m abgetastet und mit einem Gauß-Kern geglättet, damit GPS-Zacken nicht als
+ * Schlangenlinien erscheinen; hinter dem Ziel geht es geradeaus weiter.
  */
 export function routePath(route: Route, along: number, profile: ElevationProfile | null = null): Path {
   const len = route.length;
   const raw = (d: number): LatLon => pointAt(route, Math.min(len, Math.max(0, d)))!;
-  const smooth = (d: number): LatLon => {
-    const a = raw(d - 8);
-    const b = raw(d);
-    const c = raw(d + 8);
-    return { lat: (a.lat + b.lat + c.lat) / 3, lon: (a.lon + b.lon + c.lon) / 3 };
-  };
-  const o = smooth(along);
+  const o = raw(along);
   const k = Math.cos((o.lat * Math.PI) / 180);
-  const toXY = (p: LatLon) => ({ e: (p.lon - o.lon) * k * M_PER_DEG, n: (p.lat - o.lat) * M_PER_DEG });
-  const from = toXY(smooth(along - 10));
-  const to = toXY(smooth(along + 10));
-  const th = Math.atan2(to.e - from.e, to.n - from.n);
+  // Abtasten im ebenen Koordinatensystem um o: e nach Osten, n nach Norden, nur innerhalb der Strecke
+  const from = Math.max(0, along - CAMERA_M - MARGIN_M);
+  const to = Math.min(len, along + AHEAD_M + MARGIN_M);
+  const n = Math.max(2, Math.ceil((to - from) / SAMPLE_M) + 1);
+  const step = (to - from) / (n - 1) || SAMPLE_M;
+  const es: number[] = [];
+  const ns: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const p = raw(from + i * step);
+    es.push((p.lon - o.lon) * k * M_PER_DEG);
+    ns.push((p.lat - o.lat) * M_PER_DEG);
+  }
+  const se = gaussSmooth(es);
+  const sn = gaussSmooth(ns);
+  const at = (d: number) => {
+    const f = Math.min(n - 1, Math.max(0, (d - from) / step));
+    const i = Math.min(n - 2, Math.floor(f));
+    const t = f - i;
+    return { e: se[i] + (se[i + 1] - se[i]) * t, n: sn[i] + (sn[i + 1] - sn[i]) * t };
+  };
+
+  const c = at(along);
+  const a = at(along - 10);
+  const b = at(along + 10);
+  const th = Math.atan2(b.e - a.e, b.n - a.n);
   const sin = Math.sin(th);
   const cos = Math.cos(th);
-  const local = (p: LatLon) => {
-    const { e, n } = toXY(p);
-    return { x: e * cos - n * sin, z: e * sin + n * cos };
+  const local = (d: number) => {
+    const p = at(d);
+    const e = p.e - c.e;
+    const nn = p.n - c.n;
+    return { x: e * cos - nn * sin, z: e * sin + nn * cos };
   };
   const h0 = profile ? altitudeAt(profile, along) : 0;
   const height = (d: number) =>
@@ -78,26 +118,38 @@ export function routePath(route: Route, along: number, profile: ElevationProfile
 
   // Über die Enden hinaus geradeaus in der letzten bzw. ersten Richtung weiterführen
   const end = (d: number, edge: number, inner: number) => {
-    const a = local(smooth(inner));
-    const b = local(smooth(edge));
-    const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const p = local(inner);
+    const q = local(edge);
+    const l = Math.hypot(q.x - p.x, q.z - p.z) || 1;
     const over = Math.abs(d - edge);
-    return { x: b.x + ((b.x - a.x) / l) * over, z: b.z + ((b.z - a.z) / l) * over, h: height(edge) };
+    return { x: q.x + ((q.x - p.x) / l) * over, z: q.z + ((q.z - p.z) / l) * over, h: height(edge) };
   };
 
   return (s) => {
     const d = along + s;
     if (d > len) return end(d, len, len - 10);
     if (d < 0) return end(d, 0, 10);
-    return { ...local(smooth(d)), h: height(d) };
+    return { ...local(d), h: height(d) };
   };
 }
 
+/** Punkt lateral m rechts der Straßenmitte, quer zur Fahrtrichtung dort, damit Kurven ihre Breite behalten */
+function beside(path: Path, s: number, lateral: number): Local {
+  const p = path(s);
+  if (!lateral) return p;
+  const a = path(s - 1);
+  const b = path(s + 1);
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const l = Math.hypot(dx, dz) || 1;
+  return { x: p.x + (dz / l) * lateral, z: p.z - (dx / l) * lateral, h: p.h };
+}
+
 /** Bildpunkt eines Ortes neben der Straße; null hinter der Kamera */
-function project(p: Local, lateral = 0): { x: number; y: number; z: number } | null {
+function project(p: Local): { x: number; y: number; z: number } | null {
   const z = p.z + CAMERA_M;
   if (z < 1.5) return null;
-  return { x: CX + (F * (p.x + lateral)) / z, y: HORIZON_Y + (F * (CAM_H - p.h)) / z, z };
+  return { x: CX + (F * p.x) / z, y: HORIZON_Y + (F * (CAM_H - p.h)) / z, z };
 }
 
 type Pt = [number, number];
@@ -124,11 +176,13 @@ export function buildRoad(path: Path, along = 0): Segment[] {
     const s = marks[i];
     const far = path(s);
     const near = path(marks[i + 1]);
-    const pts = (lat: number) => [project(far, lat), project(near, lat)] as const;
+    const pts = (lat: number) => [project(beside(path, s, lat)), project(beside(path, marks[i + 1], lat))] as const;
     const [fl, nl] = pts(-ROAD_HALF);
     const [fr, nr] = pts(ROAD_HALF);
-    const [gfl, gnl] = pts(-GROUND_HALF);
-    const [gfr, gnr] = pts(GROUND_HALF);
+    // Das Gelände nur seitlich im Bild verbreitern: quer zur Straße würden sich die Streifen in engen Kurven überschlagen
+    const wide = (lat: number) => [project({ ...far, x: far.x + lat }), project({ ...near, x: near.x + lat })] as const;
+    const [gfl, gnl] = wide(-GROUND_HALF);
+    const [gfr, gnr] = wide(GROUND_HALF);
     if (!fl || !nl || !fr || !nr || !gfl || !gnl || !gfr || !gnr) continue;
     const xy = (p: { x: number; y: number }): Pt => [p.x, p.y];
     const dashOn = s <= NEAR_M && Math.floor((along + s) / STEP_M) % 3 === 0;
@@ -159,10 +213,10 @@ export interface Placement {
 /** Wo eine Figur s Meter vor dir steht (negativ: hinter dir), lateral m rechts der Straßenmitte. */
 export function place(path: Path, s: number, lateral = YOU_LANE): Placement {
   // Hinter dir wird die Tiefe gestaucht, damit ein naher Verfolger noch unten im Bild auftaucht.
-  const p = path(s);
+  const p = s < 0 ? path(s) : beside(path, s, lateral);
   const z = (s < 0 ? s / 2 : p.z) + CAMERA_M;
   if (z < 4) return { x: 0, y: VIEW_BOTTOM * 2, scale: 0, hidden: true };
-  const x = s < 0 ? lateral : p.x + lateral;
+  const x = s < 0 ? lateral : p.x;
   const sx = CX + (F * x) / z;
   const sy = HORIZON_Y + (F * (CAM_H - p.h)) / z;
   const scale = CAMERA_M / z;

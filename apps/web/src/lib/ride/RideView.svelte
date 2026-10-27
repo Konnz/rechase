@@ -124,7 +124,7 @@
           <polygon points={seg.ground.join(' ')} fill="#14171B" stroke="#14171B" stroke-width="1" />
           <polygon points={seg.road.join(' ')} fill="#20242B" stroke="#20242B" stroke-width="1" />
           {#each seg.edges as [a, b]}
-            <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#F2F4F7" stroke-opacity="0.2" stroke-width="1.5" />
+            <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#F2F4F7" stroke-opacity="0.2" stroke-width="1.5" stroke-linecap="round" />
           {/each}
           {#if seg.dash}
             <line x1={seg.dash[0][0]} y1={seg.dash[0][1]} x2={seg.dash[1][0]} y2={seg.dash[1][1]} stroke="#F2F4F7" stroke-opacity="0.35" stroke-width="2.5" />
