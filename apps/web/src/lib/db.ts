@@ -1,4 +1,14 @@
-import type { BatteryRecord, BikeType, DeviceInfo, DuelRecord, LatLon, MotionSample, TrackPoint } from '@rechase/core';
+import type {
+  BatteryRecord,
+  BikeType,
+  DeviceInfo,
+  DuelRecord,
+  ElevationProfile,
+  Ghost,
+  LatLon,
+  MotionSample,
+  TrackPoint,
+} from '@rechase/core';
 
 /** Eine aufgezeichnete Fahrt, wie sie lokal in IndexedDB liegt. */
 export interface StoredRide {
@@ -32,6 +42,10 @@ export interface StoredRide {
   duel?: DuelRecord;
   /** Akkustand zu Beginn und Ende, wo messbar */
   battery?: BatteryRecord;
+  /** Gegen diesen geteilten Ghost gefahren (Code des Challenge-Links) */
+  challengeId?: string;
+  /** Bewegungszeit auf der Strecke der Challenge in ms, null wenn nicht zu Ende gefahren */
+  challengeTime?: number | null;
 }
 
 /** Eine gemerkte Strecke mit ihrer Bestzeit. Der Ghost wird bei Bedarf aus der Bestzeit-Fahrt berechnet. */
@@ -51,8 +65,34 @@ export interface StoredRoute {
   attempts: number;
 }
 
+/** Ein geteilter Ghost eines anderen Chasers, über einen Challenge-Link übernommen */
+export interface StoredChallenge {
+  /** Code des Links */
+  id: string;
+  url: string;
+  /** Name der Strecke */
+  name: string;
+  /** Chaser-Name des Herausforderers */
+  chaser: string;
+  bike: BikeType | null;
+  /** Tag seiner Fahrt, YYYY-MM-DD */
+  day: string;
+  /** Strecke, an Start und Ende schon gekürzt */
+  points: LatLon[];
+  length: number;
+  ghost: Ghost;
+  /** Seine Bewegungszeit in ms */
+  time: number;
+  profile: ElevationProfile | null;
+  importedAt: number;
+  /** Eigene beste Zeit auf der Strecke in ms */
+  bestTime?: number;
+  bestRideId?: string;
+  attempts: number;
+}
+
 const DB_NAME = 'rechase';
-type StoreName = 'rides' | 'routes' | 'uploads';
+type StoreName = 'rides' | 'routes' | 'uploads' | 'challenges';
 
 /** Stand einer Fahrt auf dem Server (Feldtest): welcher Fingerabdruck zuletzt hochgeladen wurde */
 export interface UploadMark {
@@ -65,12 +105,13 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 
 function open(): Promise<IDBDatabase> {
   dbPromise ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 3);
+    const req = indexedDB.open(DB_NAME, 4);
     req.onupgradeneeded = (e) => {
       const db = req.result;
       if (e.oldVersion < 1) db.createObjectStore('rides', { keyPath: 'id' });
       if (e.oldVersion < 2) db.createObjectStore('routes', { keyPath: 'id' });
       if (e.oldVersion < 3) db.createObjectStore('uploads', { keyPath: 'id' });
+      if (e.oldVersion < 4) db.createObjectStore('challenges', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -101,6 +142,11 @@ export const saveRoute = (route: StoredRoute) => run('routes', 'readwrite', (s) 
 export const deleteRoute = (id: string) => run('routes', 'readwrite', (s) => s.delete(id));
 export const listRoutes = async () =>
   (await run<StoredRoute[]>('routes', 'readonly', (s) => s.getAll())).sort((a, b) => a.name.localeCompare(b.name));
+
+export const saveChallenge = (c: StoredChallenge) => run('challenges', 'readwrite', (s) => s.put(c));
+export const deleteChallenge = (id: string) => run('challenges', 'readwrite', (s) => s.delete(id));
+export const listChallenges = async () =>
+  (await run<StoredChallenge[]>('challenges', 'readonly', (s) => s.getAll())).sort((a, b) => b.importedAt - a.importedAt);
 
 export const saveUploadMark = (mark: UploadMark) => run('uploads', 'readwrite', (s) => s.put(mark));
 export const listUploadMarks = () => run<UploadMark[]>('uploads', 'readonly', (s) => s.getAll());

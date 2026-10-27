@@ -35,6 +35,34 @@ export interface RideRow {
   summary: RideSummary;
 }
 
+/** Ein geteilter Ghost ohne seine Punkte */
+export interface GhostRow {
+  code: string;
+  userId: string;
+  rideId: string;
+  name: string;
+  bike: BikeType | null;
+  length: number;
+  time: number;
+  day: string;
+  createdAt: number;
+  updatedAt: number;
+  views: number;
+  /** Chaser-Name des Kontos, zum Zeitpunkt der Abfrage */
+  chaser: string | null;
+  hasImage: boolean;
+}
+
+/** Verbindung zu Strava (E18-3) */
+export interface StravaLink {
+  userId: string;
+  athleteId: string;
+  accessToken: string;
+  refreshToken: string;
+  /** ms seit Epoch */
+  expiresAt: number;
+}
+
 export type Provider = 'password' | 'google' | 'apple';
 
 export interface Identity {
@@ -89,6 +117,32 @@ const MIGRATIONS = [
      data BLOB NOT NULL
    );
    CREATE INDEX rides_user ON rides(user_id, started_at);`,
+  // Geteilte Ghosts (E11, E12-3): nur per Link sichtbar. data ist der gekürzte Ghost als gzip-JSON,
+  // image das Teilbild für die Vorschau in Messengern. Je Fahrt gibt es höchstens einen Link.
+  `CREATE TABLE ghosts (
+     code TEXT PRIMARY KEY,
+     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     ride_id TEXT NOT NULL,
+     name TEXT NOT NULL,
+     bike TEXT,
+     length_m REAL NOT NULL,
+     time_ms INTEGER NOT NULL,
+     day TEXT NOT NULL,
+     created_at INTEGER NOT NULL,
+     updated_at INTEGER NOT NULL,
+     views INTEGER NOT NULL DEFAULT 0,
+     data BLOB NOT NULL,
+     image BLOB,
+     UNIQUE (user_id, ride_id)
+   );
+   CREATE TABLE strava (
+     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+     athlete_id TEXT NOT NULL,
+     access_token TEXT NOT NULL,
+     refresh_token TEXT NOT NULL,
+     expires_at INTEGER NOT NULL,
+     created_at INTEGER NOT NULL
+   );`,
 ];
 
 interface UserRow {
@@ -128,6 +182,41 @@ const toRide = (r: RideDbRow): RideRow => ({
   uploadedAt: r.uploaded_at,
   summary: JSON.parse(r.summary) as RideSummary,
 });
+
+interface GhostDbRow {
+  code: string;
+  user_id: string;
+  ride_id: string;
+  name: string;
+  bike: string | null;
+  length_m: number;
+  time_ms: number;
+  day: string;
+  created_at: number;
+  updated_at: number;
+  views: number;
+  chaser: string | null;
+  has_image: number;
+}
+
+const toGhost = (r: GhostDbRow): GhostRow => ({
+  code: r.code,
+  userId: r.user_id,
+  rideId: r.ride_id,
+  name: r.name,
+  bike: r.bike as BikeType | null,
+  length: r.length_m,
+  time: r.time_ms,
+  day: r.day,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+  views: r.views,
+  chaser: r.chaser,
+  hasImage: !!r.has_image,
+});
+
+const GHOST_COLUMNS = `g.code, g.user_id, g.ride_id, g.name, g.bike, g.length_m, g.time_ms, g.day, g.created_at, g.updated_at,
+  g.views, u.name AS chaser, g.image IS NOT NULL AS has_image`;
 
 export type Store = ReturnType<typeof openStore>;
 
@@ -186,6 +275,32 @@ export function openStore(path: string, now: () => number = Date.now) {
     allRides: db.prepare('SELECT id, user_id, started_at, ended_at, uploaded_at, summary FROM rides ORDER BY started_at DESC'),
     ride: db.prepare('SELECT id, user_id, started_at, ended_at, uploaded_at, summary FROM rides WHERE id = ?'),
     rideData: db.prepare('SELECT data FROM rides WHERE id = ?'),
+    ghost: db.prepare(`SELECT ${GHOST_COLUMNS} FROM ghosts g JOIN users u ON u.id = g.user_id WHERE g.code = ?`),
+    ghostOfRide: db.prepare(
+      `SELECT ${GHOST_COLUMNS} FROM ghosts g JOIN users u ON u.id = g.user_id WHERE g.user_id = ? AND g.ride_id = ?`,
+    ),
+    ghostsOf: db.prepare(
+      `SELECT ${GHOST_COLUMNS} FROM ghosts g JOIN users u ON u.id = g.user_id WHERE g.user_id = ? ORDER BY g.created_at DESC`,
+    ),
+    insertGhost: db.prepare(
+      `INSERT INTO ghosts (code, user_id, ride_id, name, bike, length_m, time_ms, day, created_at, updated_at, data, image)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ),
+    updateGhost: db.prepare(
+      `UPDATE ghosts SET name = ?, bike = ?, length_m = ?, time_ms = ?, day = ?, updated_at = ?, data = ?,
+         image = COALESCE(?, image) WHERE code = ?`,
+    ),
+    ghostData: db.prepare('SELECT data FROM ghosts WHERE code = ?'),
+    ghostImage: db.prepare('SELECT image FROM ghosts WHERE code = ?'),
+    countView: db.prepare('UPDATE ghosts SET views = views + 1 WHERE code = ?'),
+    deleteGhost: db.prepare('DELETE FROM ghosts WHERE code = ? AND user_id = ?'),
+    strava: db.prepare('SELECT * FROM strava WHERE user_id = ?'),
+    putStrava: db.prepare(
+      `INSERT INTO strava (user_id, athlete_id, access_token, refresh_token, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET athlete_id = excluded.athlete_id, access_token = excluded.access_token,
+         refresh_token = excluded.refresh_token, expires_at = excluded.expires_at`,
+    ),
+    deleteStrava: db.prepare('DELETE FROM strava WHERE user_id = ?'),
     testers: db.prepare(
       `SELECT * FROM users WHERE test_consent_at IS NOT NULL OR id IN (SELECT DISTINCT user_id FROM rides)
        ORDER BY created_at`,
@@ -303,6 +418,68 @@ export function openStore(path: string, now: () => number = Date.now) {
 
     countRides(userId: string): number {
       return (q.countRidesOf.get(userId) as { n: number }).n;
+    },
+
+    ghost(code: string): GhostRow | null {
+      const row = q.ghost.get(code) as GhostDbRow | undefined;
+      return row ? toGhost(row) : null;
+    },
+
+    /** Der Link, den ein Konto für eine seiner Fahrten schon erzeugt hat */
+    ghostOfRide(userId: string, rideId: string): GhostRow | null {
+      const row = q.ghostOfRide.get(userId, rideId) as GhostDbRow | undefined;
+      return row ? toGhost(row) : null;
+    },
+
+    ghostsOf(userId: string): GhostRow[] {
+      return (q.ghostsOf.all(userId) as unknown as GhostDbRow[]).map(toGhost);
+    },
+
+    /** Legt einen geteilten Ghost an; image null lässt ein vorhandenes Bild beim Ersetzen stehen. */
+    putGhost(
+      g: Pick<GhostRow, 'code' | 'userId' | 'rideId' | 'name' | 'bike' | 'length' | 'time' | 'day'>,
+      data: Uint8Array,
+      image: Uint8Array | null,
+    ) {
+      const t = now();
+      const changed = q.updateGhost.run(g.name, g.bike, g.length, g.time, g.day, t, data, image, g.code).changes;
+      if (!changed) {
+        q.insertGhost.run(g.code, g.userId, g.rideId, g.name, g.bike, g.length, g.time, g.day, t, t, data, image);
+      }
+    },
+
+    ghostData(code: string): Uint8Array | null {
+      return (q.ghostData.get(code) as { data: Uint8Array } | undefined)?.data ?? null;
+    },
+
+    ghostImage(code: string): Uint8Array | null {
+      return (q.ghostImage.get(code) as { image: Uint8Array | null } | undefined)?.image ?? null;
+    },
+
+    countGhostView(code: string) {
+      q.countView.run(code);
+    },
+
+    /** Zieht einen Link zurück; nur das eigene Konto darf das */
+    deleteGhost(code: string, userId: string): boolean {
+      return q.deleteGhost.run(code, userId).changes > 0;
+    },
+
+    strava(userId: string): StravaLink | null {
+      const r = q.strava.get(userId) as
+        | { user_id: string; athlete_id: string; access_token: string; refresh_token: string; expires_at: number }
+        | undefined;
+      return r
+        ? { userId: r.user_id, athleteId: r.athlete_id, accessToken: r.access_token, refreshToken: r.refresh_token, expiresAt: r.expires_at }
+        : null;
+    },
+
+    putStrava(link: StravaLink) {
+      q.putStrava.run(link.userId, link.athleteId, link.accessToken, link.refreshToken, link.expiresAt, now());
+    },
+
+    deleteStrava(userId: string) {
+      q.deleteStrava.run(userId);
     },
 
     session(tokenHash: string): Session | null {

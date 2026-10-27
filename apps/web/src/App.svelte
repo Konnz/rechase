@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { bikeInfo, type Cue } from '@rechase/core';
+  import { bikeInfo, challengeCodeFromPath, type Cue } from '@rechase/core';
   import { onMount } from 'svelte';
   import { account } from './lib/account/account.svelte.ts';
   import AccountScreen from './lib/account/AccountScreen.svelte';
@@ -11,15 +11,25 @@
   import Onboarding from './lib/account/Onboarding.svelte';
   import Profile from './lib/account/Profile.svelte';
   import {
+    deleteChallenge,
     deleteRide,
     deleteRoute,
+    listChallenges,
     listRides,
     listRoutes,
     requestPersistence,
     saveRide,
+    type StoredChallenge,
     type StoredRide,
     type StoredRoute,
   } from './lib/db.ts';
+  import {
+    challengeOpponent,
+    challengeRoute,
+    evaluateChallenge,
+    type ChallengeResult,
+  } from './lib/share/challenges.ts';
+  import ChallengeView from './lib/share/ChallengeView.svelte';
   import { Duel } from './lib/duel.svelte.ts';
   import RideView from './lib/ride/RideView.svelte';
   import { download, toCsv, toGpx } from './lib/export.ts';
@@ -60,6 +70,10 @@
   // raw: IndexedDB kann keine $state-Proxys speichern
   let rides = $state.raw<StoredRide[]>([]);
   let routes = $state.raw<StoredRoute[]>([]);
+  /** Übernommene Ghosts anderer Chaser */
+  let challenges = $state.raw<StoredChallenge[]>([]);
+  /** Code eines geöffneten Challenge-Links (/c/<code>) */
+  let incoming = $state<string | null>(challengeCodeFromPath(location.pathname));
   let showMap = $state(false);
   /** Ergebnis der letzten Fahrt auf einer Strecke */
   let result = $state.raw<RideResult | { route: StoredRoute; incomplete: true } | null>(null);
@@ -88,11 +102,25 @@
       history.replaceState(null, '', location.pathname + (params.size ? `?${params}` : '') + location.hash);
       if (outcome === 'fehler') notice = 'Die Anmeldung mit Google hat nicht geklappt. Bitte noch einmal versuchen.';
     }
+    // Rückkehr von Strava
+    const strava = params.get('strava');
+    if (strava) {
+      params.delete('strava');
+      history.replaceState(null, '', location.pathname + (params.size ? `?${params}` : '') + location.hash);
+      notice =
+        strava === 'verbunden'
+          ? null
+          : strava === 'ohne-recht'
+            ? 'Ohne das Recht zum Hochladen kann re:chase keine Fahrten zu Strava schicken. Bitte beim Verbinden das Häkchen setzen.'
+            : strava === 'fehler'
+              ? 'Die Verbindung mit Strava hat nicht geklappt. Bitte noch einmal versuchen.'
+              : null;
+    }
     await account.load();
     if (account.user) {
       account.dismissWelcome();
       afterAccount();
-    } else if (!account.welcomeSeen && !active) openAccount('welcome');
+    } else if (!account.welcomeSeen && !active && !incoming) openAccount('welcome');
     void uploader.sync();
   }
 
@@ -150,6 +178,8 @@
     simulated: boolean;
     result: typeof result;
     sectionPrs?: number;
+    challenge?: StoredChallenge | null;
+    challengeResult?: ChallengeResult | null;
   } | null>(null);
 
   const active = $derived(rec.status === 'starting' || rec.status === 'recording');
@@ -171,7 +201,11 @@
   const mutedRoutes = $derived(routes.filter((r) => challengePrefs.isMuted(r.id)));
 
   async function refresh() {
-    [rides, routes] = await Promise.all([listRides().catch(() => []), listRoutes().catch(() => [])]);
+    [rides, routes, challenges] = await Promise.all([
+      listRides().catch(() => []),
+      listRoutes().catch(() => []),
+      listChallenges().catch(() => []),
+    ]);
   }
 
   async function stop() {
@@ -182,15 +216,31 @@
     const ride = await rec.stop();
     showMap = false;
     result = null;
+    let challengeResult: ChallengeResult | null = null;
     if (ride && !rec.simulated) {
-      const r = await evaluateRide(ride, routes);
-      result = r ?? (d ? { route: d.stored, incomplete: true } : null);
-    } else if (d && d.phase === 'finished') {
+      if (d?.foreign) {
+        challengeResult = await evaluateChallenge(ride, d.foreign, rideCounts(ride));
+        result = await evaluateRide((await listRides()).find((x) => x.id === ride.id) ?? ride, routes);
+      } else {
+        const r = await evaluateRide(ride, routes);
+        result = r ?? (d ? { route: d.stored, incomplete: true } : null);
+      }
+    } else if (d && d.phase === 'finished' && !d.foreign) {
       // Simulation: Ergebnis zeigen, aber nichts speichern
       result = { route: d.stored, time: d.time, previousBest: d.opponent.time, newBest: false, counted: true };
     }
     await refresh();
-    if (ride?.samples.length) summary = { ride, simulated: rec.simulated, result, sectionPrs: d?.sectionPrs.length };
+    if (ride?.samples.length) {
+      const saved = rides.find((x) => x.id === ride.id) ?? ride;
+      summary = {
+        ride: saved,
+        simulated: rec.simulated,
+        result,
+        sectionPrs: d?.sectionPrs.length,
+        challenge: challengeResult?.challenge ?? null,
+        challengeResult,
+      };
+    }
     if (ride && !rec.simulated) void uploader.sync();
   }
 
@@ -242,6 +292,34 @@
     }
     await rec.start(opts);
     if (!simulate) watch.begin(routes);
+  }
+
+  /** Duell gegen einen geteilten Ghost; wie bei eigenen Strecken läuft die Zeit erst ab der Startlinie */
+  async function startChallenge(c: StoredChallenge) {
+    sounds.unlock();
+    result = null;
+    notice = null;
+    void requestPersistence();
+    await rec.start({ duel: new Duel(challengeRoute(c), challengeOpponent(c), [], { foreign: c }), bike: account.bike });
+    watch.begin(routes);
+  }
+
+  async function removeChallenge(c: StoredChallenge) {
+    if (!confirm(`Challenge „${c.name}“ von ${c.chaser} entfernen?`)) return;
+    await deleteChallenge(c.id);
+    await refresh();
+  }
+
+  /** Challenge-Link geschlossen: Adresse zurück auf die Startseite */
+  function closeIncoming() {
+    incoming = null;
+    if (challengeCodeFromPath(location.pathname)) history.replaceState(null, '', '/');
+  }
+
+  /** Zum Teilen braucht es ein Konto mit Chaser-Namen */
+  function needAccount() {
+    if (account.user) screen = account.user.onboarded ? 'profile' : 'onboarding';
+    else openAccount('register');
   }
 
   async function remember(r: StoredRide): Promise<StoredRoute | null> {
@@ -334,6 +412,21 @@
   <Onboarding ondone={() => (screen = null)} />
 {:else if screen === 'profile' && !active}
   <Profile onclose={() => (screen = null)} />
+{:else if incoming && !active}
+  <ChallengeView
+    code={incoming}
+    onclose={closeIncoming}
+    onaccount={needAccount}
+    onaccept={async () => {
+      closeIncoming();
+      await refresh();
+    }}
+    onrace={async (c) => {
+      closeIncoming();
+      await refresh();
+      await startChallenge(c);
+    }}
+  />
 {:else if summary}
   {@const s = summary}
   <Summary
@@ -343,8 +436,11 @@
     result={s.result}
     simulated={s.simulated}
     sectionPrs={s.sectionPrs}
+    challenge={s.challenge ?? (s.ride.challengeId ? challenges.find((c) => c.id === s.ride.challengeId) : null)}
+    challengeResult={s.challengeResult}
     onsave={remember}
     onamend={amend}
+    onaccount={needAccount}
     onclose={() => (summary = null)}
   />
 {:else if showMap}
@@ -513,6 +609,37 @@
 
   {#if account.user?.onboarded && !account.user.testConsent && !fieldTestLater && !active}
     <FieldTest compact ondismiss={dismissFieldTest} />
+  {/if}
+
+  {#if challenges.length}
+    <section class="rides">
+      <h2>Challenges</h2>
+      <ul>
+        {#each challenges as c (c.id)}
+          <li>
+            <div>
+              <span class="when">{c.name}</span>
+              <span class="what">
+                von {c.chaser} · {fmtKm(c.length)} km · {fmtDuration(c.time)}{c.bike ? ` · ${bikeInfo(c.bike).label}` : ''}
+              </span>
+              <span class="what route">
+                {#if c.bestTime != null}
+                  Deine Bestzeit {fmtDuration(c.bestTime)} · {c.bestTime < c.time ? 'Ghost geschlagen' : `${fmtGapSeconds((c.bestTime - c.time) / 1000)} zurück`}
+                {:else}
+                  Noch nicht gefahren
+                {/if}
+              </span>
+              <span class="links">
+                <button class="link" disabled={active} onclick={() => removeChallenge(c)}>Entfernen</button>
+              </span>
+            </div>
+            <div class="actions">
+              <button class="duel" disabled={active} onclick={() => startChallenge(c)}>Duell</button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </section>
   {/if}
 
   {#if routes.length}

@@ -86,3 +86,14 @@ export function checkOrigin(req: IncomingMessage) {
 }
 
 export const str = (v: unknown) => (typeof v === 'string' ? v : '');
+
+const isHttps = (req: IncomingMessage) => req.headers['x-forwarded-proto'] === 'https';
+
+/** Öffentliche Adresse ohne Schrägstrich am Ende: fest eingestellt oder aus den Headern von nginx */
+export function baseUrl(req: IncomingMessage, publicUrl?: string) {
+  if (publicUrl) return publicUrl.replace(/\/$/, '');
+  return `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`;
+}
+
+export const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);

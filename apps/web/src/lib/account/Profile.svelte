@@ -3,6 +3,8 @@
   import { account } from './account.svelte.ts';
   import BikePicker from './BikePicker.svelte';
   import FieldTest from './FieldTest.svelte';
+  import PrivacySettings from '../share/PrivacySettings.svelte';
+  import SharingSettings from '../share/SharingSettings.svelte';
   import './forms.css';
 
   let { onclose }: { onclose: () => void } = $props();
@@ -85,6 +87,10 @@
     {:else if saved}
       <p role="status">{saved}</p>
     {/if}
+
+    <PrivacySettings />
+
+    <SharingSettings />
 
     <FieldTest />
 

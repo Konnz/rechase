@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { isBikeType, normalizeChaserName, type BikeType } from '@rechase/core';
-import { checkOrigin, cookies, HttpError, readJson, sendJson, str } from './http.ts';
+import { baseUrl as httpBaseUrl, checkOrigin, cookies, HttpError, readJson, sendJson, str } from './http.ts';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password.ts';
 import type { Provider, Store, User } from './store.ts';
 
@@ -28,6 +28,8 @@ export interface AccountsOptions {
   fetch?: typeof fetch;
   /** E-Mail-Adressen mit Zugang zum Adminbereich */
   adminEmails?: readonly string[];
+  /** Ist Strava auf dem Server eingerichtet? */
+  stravaEnabled?: boolean;
 }
 
 const SESSION_COOKIE = 'rechase_session';
@@ -45,11 +47,11 @@ const sha256 = (s: string) => createHash('sha256').update(s).digest('base64url')
 
 const isHttps = (req: IncomingMessage) => req.headers['x-forwarded-proto'] === 'https';
 
-function cookie(req: IncomingMessage, name: string, value: string, maxAgeS: number, path = '/') {
+export function cookie(req: IncomingMessage, name: string, value: string, maxAgeS: number, path = '/') {
   return `${name}=${value}; Path=${path}; Max-Age=${maxAgeS}; HttpOnly; SameSite=Lax${isHttps(req) ? '; Secure' : ''}`;
 }
 
-function redirect(res: ServerResponse, location: string, setCookie: string[] = []) {
+export function redirect(res: ServerResponse, location: string, setCookie: string[] = []) {
   res.writeHead(303, { Location: location, 'Cache-Control': 'no-store', 'Set-Cookie': setCookie });
   res.end();
 }
@@ -70,6 +72,8 @@ export interface PublicUser {
   uploadedRides: number;
   /** Darf den Adminbereich unter /admin öffnen */
   admin: boolean;
+  /** Mit Strava verbunden (E18-3) */
+  strava: boolean;
 }
 
 export function createAccounts({
@@ -79,6 +83,7 @@ export function createAccounts({
   now = Date.now,
   fetch: customFetch,
   adminEmails = [],
+  stravaEnabled = false,
 }: AccountsOptions) {
   const admins = new Set(adminEmails.map((e) => e.trim().toLowerCase()).filter(Boolean));
   const isAdmin = (u: User) => !!u.email && admins.has(u.email.toLowerCase());
@@ -105,6 +110,7 @@ export function createAccounts({
     testConsent: u.testConsentAt != null,
     uploadedRides: store.countRides(u.id),
     admin: isAdmin(u),
+    strava: store.strava(u.id) != null,
   });
 
   function startSession(req: IncomingMessage, userId: string) {
@@ -135,11 +141,7 @@ export function createAccounts({
     return user;
   }
 
-  function baseUrl(req: IncomingMessage) {
-    if (publicUrl) return publicUrl.replace(/\/$/, '');
-    const proto = isHttps(req) ? 'https' : 'http';
-    return `${proto}://${req.headers.host}`;
-  }
+  const baseUrl = (req: IncomingMessage) => httpBaseUrl(req, publicUrl);
 
   // ---- E-Mail und Passwort ----
 
@@ -317,7 +319,7 @@ export function createAccounts({
       if (req.method !== 'GET' && req.method !== 'HEAD') checkOrigin(req);
       switch (route) {
         case 'GET /api/auth/config':
-          sendJson(res, 200, { google: !!google });
+          sendJson(res, 200, { google: !!google, strava: stravaEnabled });
           break;
         case 'POST /api/auth/register':
           await register(req, res);

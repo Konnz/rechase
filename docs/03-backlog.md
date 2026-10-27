@@ -217,21 +217,21 @@ Damit der Feldtest mit 5–10 Fahrern etwas bringt, müssen ihre Fahrten beim Te
 ### Epic E11: Ghosts teilen
 | ID | Story | Prio | Größe |
 |---|---|---|---|
-| E11-1 | Als Fahrer will ich meine Bestzeit auf einer Strecke per Link teilen (Web Share API). | M | M |
-| E11-2 | Als Empfänger will ich den Link öffnen und ohne Installation eine Vorschau sehen (Strecke, Zeit, Herausforderer). | M | M |
-| E11-3 | Als Empfänger will ich gegen den geteilten Ghost fahren. | M | S |
+| E11-1 | ✅ (auch ohne gemerkte Strecke: dann die ganze Fahrt) Als Fahrer will ich meine Bestzeit auf einer Strecke per Link teilen (Web Share API). | M | M |
+| E11-2 | ✅ Als Empfänger will ich den Link öffnen und ohne Installation eine Vorschau sehen (Strecke, Zeit, Herausforderer). | M | M |
+| E11-3 | ✅ Als Empfänger will ich gegen den geteilten Ghost fahren. | M | S |
 | E11-4 | Als Empfänger will ich nach der Fahrt mit meiner Fahrt antworten („Re:“), sodass der Absender meinen Ghost bekommt. | M | M |
 | E11-5 | Als Fahrer will ich eine Benachrichtigung, wenn jemand meinen Ghost geschlagen hat. | S | M |
-| E11-6 | Als Fahrer will ich **Privatzonen**, die **standardmäßig an** sind: Start und Ende jeder geteilten oder öffentlichen Fahrt werden um einen zufälligen Radius (z. B. 300–800 m) gekürzt, und ich kann feste Zonen (Zuhause, Arbeit) anlegen. Muss fertig sein, bevor irgendetwas geteilt wird. | M | M |
+| E11-6 | ✅ (Zonen nur auf dem Gerät, Kürzung je Fahrt fest; Durchfahrten durch Zonen bleiben sichtbar) Als Fahrer will ich **Privatzonen**, die **standardmäßig an** sind: Start und Ende jeder geteilten oder öffentlichen Fahrt werden um einen zufälligen Radius (z. B. 300–800 m) gekürzt, und ich kann feste Zonen (Zuhause, Arbeit) anlegen. Muss fertig sein, bevor irgendetwas geteilt wird. | M | M |
 
 ### Epic E12: Konto und Backend
 | ID | Story | Prio | Größe |
 |---|---|---|---|
 | E12-1 | ✅ (E-Mail und Google, Apple fehlt noch) Als Nutzer will ich mich **mit Google, mit Apple oder manuell** (E-Mail und Passwort) registrieren und anmelden, um teilen und mitspielen zu können. Ohne Konto funktioniert alles lokal weiter. | M | M |
-| E12-5 | ✅ (ohne Privatzonen, die kommen mit E11-6) Als neuer Nutzer will ich im **Onboarding** meinen Chaser-Namen, mein Standardrad (Rennrad, Gravel, MTB, Trekking, E-Bike bis 25 km/h, S-Pedelec) und meine Privatzonen festlegen. | M | M |
+| E12-5 | ✅ (Privatzonen legt man im Profil an, das Onboarding weist darauf hin) Als neuer Nutzer will ich im **Onboarding** meinen Chaser-Namen, mein Standardrad (Rennrad, Gravel, MTB, Trekking, E-Bike bis 25 km/h, S-Pedelec) und meine Privatzonen festlegen. | M | M |
 | E12-6 | ✅ Als Fahrer will ich das Rad vor jeder Fahrt mit einem Tipp umstellen können, damit E-Bike-Fahrten getrennt gewertet werden. | M | S |
 | E12-2 | Als Nutzer will ich meine Fahrten in die Cloud sichern und auf einem neuen Gerät wiederherstellen. | S | M |
-| E12-3 | Backend: geteilte Ghosts speichern, Links erzeugen, Zugriffsrechte (nur per Link sichtbar). | M | M |
+| E12-3 | ✅ Backend: geteilte Ghosts speichern, Links erzeugen, Zugriffsrechte (nur per Link sichtbar). | M | M |
 | E12-4 | Datenschutz: Einwilligung, Löschen des Kontos und aller Daten (DSGVO). | M | S |
 | E12-7 | ✅ Technik: Social Login und Passwort. Umgesetzt ohne Bibliothek (scrypt, Sitzungs-Cookie, Google per OpenID Connect mit PKCE) auf SQLite im Volume `/data`; Umzug nach Postgres, sobald PostGIS gebraucht wird. Hinweis: „Mit Apple anmelden“ braucht ein Apple-Developer-Konto (99 $/Jahr). | M | M |
 
@@ -246,9 +246,9 @@ Damit der Feldtest mit 5–10 Fahrern etwas bringt, müssen ihre Fahrten beim Te
 ### Epic E18: Teilen auf Social Media und Strava
 | ID | Story | Prio | Größe |
 |---|---|---|---|
-| E18-1 | Als Fahrer will ich nach der Fahrt eine **Teilen-Karte** als Bild (Karte, Zeit, Abstand, Rang, „Challenge me“) erzeugen und über das Teilen-Menü in Instagram, WhatsApp usw. posten. | M | M |
-| E18-2 | Als Empfänger will ich, dass ein Challenge-Link in Messengern eine Vorschau zeigt (Open-Graph-Bild vom Server). | S | M |
-| E18-3 | Als Fahrer will ich mein Strava-Konto verbinden und Fahrten automatisch zu Strava hochladen, mit Ergebnis und Challenge-Link in der Beschreibung. | S | M |
+| E18-1 | ✅ Als Fahrer will ich nach der Fahrt eine **Teilen-Karte** als Bild (Karte, Zeit, Abstand, Rang, „Challenge me“) erzeugen und über das Teilen-Menü in Instagram, WhatsApp usw. posten. | M | M |
+| E18-2 | ✅ (Bild macht die App, der Server liefert es aus; auch hinter der PIN-Sperre) Als Empfänger will ich, dass ein Challenge-Link in Messengern eine Vorschau zeigt (Open-Graph-Bild vom Server). | S | M |
+| E18-3 | ✅ (nur Hochladen auf Knopfdruck, nicht automatisch; braucht STRAVA_CLIENT_ID/SECRET) Als Fahrer will ich mein Strava-Konto verbinden und Fahrten automatisch zu Strava hochladen, mit Ergebnis und Challenge-Link in der Beschreibung. | S | M |
 | E18-4 | Als Fahrer will ich eigene Strava-Fahrten importieren und als **private** Ghosts nutzen (Strava erlaubt nicht, sie anderen zu zeigen). | C | M |
 
 ### Epic E23: Faire Abschnitts-Duelle (Teilstrecken)

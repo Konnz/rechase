@@ -12,3 +12,4 @@ export * from './plausibility.ts';
 export * from './upload.ts';
 export * from './fieldtest.ts';
 export * from './challenge.ts';
+export * from './share.ts';

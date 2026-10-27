@@ -26,6 +26,7 @@ export function toGpx(ride: StoredRide): string {
 <gpx version="1.1" creator="re:chase" xmlns="http://www.topografix.com/GPX/1/1" xmlns:rc="urn:rechase:gpx:1">
   <trk>
     <name>re:chase ${iso(ride.startedAt)}</name>
+    <type>cycling</type>
     <trkseg>
 ${pts}
     </trkseg>

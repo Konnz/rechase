@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { escapeHtml } from './http.ts';
 
 /**
  * Einfache PIN-Sperre für die Entwicklungsphase. Die PIN liegt nur auf dem Server (APP_PIN),
@@ -27,7 +28,21 @@ export interface PinGate {
   handle(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean>;
 }
 
-export function createPinGate(pin: string, now: () => number = Date.now): PinGate {
+export interface PinGateOptions {
+  /** Weitere Pfade ohne PIN, z. B. Vorschaubilder geteilter Challenges */
+  isPublic?: (url: URL) => boolean;
+  /** Zusätzliche Tags im Kopf des Formulars, damit Messenger auch hinter der Sperre eine Vorschau zeigen */
+  head?: (req: IncomingMessage, url: URL) => string;
+}
+
+/** Nur Pfade dieser Seite, keine fremden Adressen nach der PIN */
+const safeNext = (v: string | null | undefined) => (v && /^\/(?!\/)[\w\-./?=&%]*$/.test(v) ? v : '/');
+
+export function createPinGate(
+  pin: string,
+  now: () => number = Date.now,
+  { isPublic, head }: PinGateOptions = {},
+): PinGate {
   // Wechselt die PIN, sind alle alten Cookies ungültig.
   const token = createHmac('sha256', pin).update('rechase-pin-v1').digest('base64url');
   const tries = new Map<string, { count: number; since: number }>();
@@ -76,19 +91,19 @@ export function createPinGate(pin: string, now: () => number = Date.now): PinGat
     return body;
   }
 
-  function sendForm(res: ServerResponse, status: number, message = '') {
+  function sendForm(res: ServerResponse, status: number, message = '', next = '/', extraHead = '') {
     res.writeHead(status, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       'X-Robots-Tag': 'noindex',
     });
-    res.end(formHtml(message));
+    res.end(formHtml(message, next, extraHead));
   }
 
   return {
     async handle(req, res, url) {
-      if (PUBLIC_PATHS.has(url.pathname)) return false;
+      if (PUBLIC_PATHS.has(url.pathname) || isPublic?.(url)) return false;
 
       if (url.pathname === '/pin' && req.method === 'POST') {
         const ip = clientIp(req);
@@ -96,16 +111,18 @@ export function createPinGate(pin: string, now: () => number = Date.now): PinGat
           sendForm(res, 429, 'Zu viele Versuche. Bitte in 15 Minuten erneut probieren.');
           return true;
         }
-        const entered = new URLSearchParams(await readBody(req)).get('pin')?.trim() ?? '';
+        const form = new URLSearchParams(await readBody(req));
+        const entered = form.get('pin')?.trim() ?? '';
+        const next = safeNext(form.get('next'));
         if (!same(entered, pin)) {
           fail(ip);
-          sendForm(res, 401, 'Falsche PIN.');
+          sendForm(res, 401, 'Falsche PIN.', next);
           return true;
         }
         tries.delete(ip);
         const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
         res.writeHead(303, {
-          Location: '/',
+          Location: next,
           'Set-Cookie': `${COOKIE}=${token}; Path=/; Max-Age=${MAX_AGE_S}; HttpOnly; SameSite=Lax${secure}`,
           'Cache-Control': 'no-store',
         });
@@ -128,7 +145,9 @@ export function createPinGate(pin: string, now: () => number = Date.now): PinGat
 
       // Seitenaufrufe bekommen das Formular, alles andere (Skripte, Service Worker) nur ein 401.
       const wantsPage = req.method === 'GET' && (req.headers.accept ?? '').includes('text/html');
-      if (wantsPage) sendForm(res, 401);
+      // Challenge-Links bekommen das Formular mit Vorschau-Tags und Status 200, sonst zeigen Messenger keine Vorschau.
+      const extra = req.method === 'GET' ? (head?.(req, url) ?? '') : '';
+      if (wantsPage || extra) sendForm(res, extra ? 200 : 401, '', safeNext(url.pathname + url.search), extra);
       else res.writeHead(401, { 'Cache-Control': 'no-store' }).end();
       return true;
     },
@@ -146,10 +165,7 @@ self.addEventListener('activate', (event) => {
 });
 `;
 
-const escapeHtml =(s: string) =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-
-function formHtml(message: string) {
+function formHtml(message: string, next: string, extraHead: string) {
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -158,6 +174,7 @@ function formHtml(message: string) {
 <meta name="theme-color" content="#0D0F12">
 <meta name="robots" content="noindex">
 <title>re:chase</title>
+${extraHead}
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -176,6 +193,7 @@ function formHtml(message: string) {
 </head>
 <body>
 <form method="post" action="/pin">
+  <input type="hidden" name="next" value="${escapeHtml(next)}">
   <h1>re:chase</h1>
   <p>Noch in Entwicklung. Bitte PIN eingeben.</p>
   <input name="pin" type="password" inputmode="numeric" autocomplete="off" aria-label="PIN" required autofocus>
