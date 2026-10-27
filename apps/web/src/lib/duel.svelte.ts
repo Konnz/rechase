@@ -15,7 +15,7 @@ import {
   type Route,
 } from '@rechase/core';
 import type { StoredRoute } from './db.ts';
-import { toRoute } from './routes.ts';
+import { toRoute, type Opponent } from './routes.ts';
 
 type Phase = 'approach' | 'racing' | 'finished';
 
@@ -26,6 +26,8 @@ type Phase = 'approach' | 'racing' | 'finished';
 export class Duel {
   readonly stored: StoredRoute;
   readonly ghost: Ghost;
+  /** Gegen wen: Bestzeit, letzte Fahrt oder Durchschnitt */
+  readonly opponent: Opponent;
   readonly route: Route;
   phase = $state<Phase>('approach');
   /** Eigener Fortschritt auf der Strecke in m */
@@ -44,20 +46,21 @@ export class Duel {
   private progress: RouteProgress;
   private trendCalc = new GapTrend();
 
-  constructor(stored: StoredRoute, ghost: Ghost) {
+  constructor(stored: StoredRoute, opponent: Opponent) {
     this.stored = stored;
-    this.ghost = ghost;
+    this.opponent = opponent;
+    this.ghost = opponent.ghost;
     this.route = toRoute(stored);
     this.progress = new RouteProgress(this.route);
     this.ghostPos = pointAt(this.route, 0);
   }
 
-  /** Tempo der Bestzeit an meiner Stelle (m/s) */
+  /** Tempo des Ghosts an meiner Stelle (m/s) */
   get ghostSpeed() {
     return ghostSpeedAt(this.ghost, this.along);
   }
 
-  /** Bewegungszeit der Bestzeit bis zu meiner Stelle (ms) */
+  /** Bewegungszeit des Ghosts bis zu meiner Stelle (ms) */
   get ghostTimeHere() {
     return ghostTimeAt(this.ghost, this.along);
   }

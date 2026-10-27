@@ -164,6 +164,16 @@
     else ghostMarker.remove();
   });
 
+  // Die Fahransicht tauscht Karte und Straße: dann wächst oder schrumpft die Karte, ohne neu zu laden.
+  let wasMini: boolean | null = null;
+  $effect(() => {
+    const m = mini;
+    if (!ready || !map) return;
+    map.resize();
+    if (wasMini != null && wasMini !== m) map.easeTo({ zoom: m ? MINI_ZOOM : FOLLOW_ZOOM, duration: 300 });
+    wasMini = m;
+  });
+
   let centered = false;
   $effect(() => {
     if (!ready || !map || !rider) return;
