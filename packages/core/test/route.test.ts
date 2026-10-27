@@ -3,6 +3,8 @@ import { compareToGhost } from '../src/ghost.ts';
 import { MotionTracker } from '../src/motion.ts';
 import {
   GapTrend,
+  altitudeAt,
+  elevationProfile,
   RouteMatcher,
   RouteProgress,
   buildRoute,
@@ -147,5 +149,19 @@ describe('GapTrend', () => {
     const t = new GapTrend();
     expect(t.push(0, 3)).toBeNull();
     expect(t.push(100, 2)).toBeNull();
+  });
+});
+
+describe('Höhenprofil', () => {
+  it('folgt einem gleichmäßigen Anstieg und glättet Rauschen', () => {
+    // 5 % Steigung mit ±2 m Rauschen
+    const pts = straight.map((p, i) => ({ ...p, alt: 500 + i * 0.5 + (i % 2 ? 2 : -2) }));
+    const prof = elevationProfile(route, samples(pts))!;
+    expect(altitudeAt(prof, 500) - altitudeAt(prof, 200)).toBeCloseTo(15, -1);
+    expect(Math.abs(altitudeAt(prof, 500) - 525)).toBeLessThan(1.5);
+  });
+
+  it('gibt ohne Höhen nichts zurück', () => {
+    expect(elevationProfile(route, samples(straight))).toBeNull();
   });
 });

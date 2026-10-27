@@ -4,8 +4,24 @@
 
 <script lang="ts">
   // Figuren aus dem Mockup „Figuren-Varianten“; der Ghost ist halbtransparent mit gestricheltem Rand.
-  let { variant = 'pfeil', ghost = false, color }: { variant?: FigureVariant; ghost?: boolean; color: string } =
-    $props();
+  // Mit x, y, width und height lässt sich die Figur direkt in eine andere SVG-Zeichnung setzen.
+  let {
+    variant = 'pfeil',
+    ghost = false,
+    color,
+    x,
+    y,
+    width = '100%',
+    height,
+  }: {
+    variant?: FigureVariant;
+    ghost?: boolean;
+    color: string;
+    x?: number;
+    y?: number;
+    width?: number | string;
+    height?: number;
+  } = $props();
 
   const fillOp = $derived(ghost ? 0.3 : 1);
   const limbOp = $derived(ghost ? 0.6 : 1);
@@ -18,7 +34,7 @@
   const aria = $derived(ghost ? 'Ghost deiner Bestzeit' : 'Du');
 </script>
 
-<svg role="img" aria-label={aria} width="100%" viewBox="0 0 40 56">
+<svg role="img" aria-label={aria} {x} {y} {width} {height} viewBox="0 0 40 56">
   {#if variant === 'pfeil'}
     <ellipse cx="20" cy="52" rx="14" ry="3" fill="#000" fill-opacity="0.35" />
     <path d="M20 6 L36 50 L20 41 L4 50 Z" fill={color} fill-opacity={fillOp} stroke={edge} stroke-width="2" stroke-dasharray={dash} stroke-linejoin="round" />

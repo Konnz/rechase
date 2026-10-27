@@ -69,3 +69,20 @@ export function compareToGhost(g: Ghost, me: { distance: number; movingTime: num
     meters: ghostDistanceAt(g, me.movingTime) - me.distance,
   };
 }
+
+/**
+ * Gemittelter Ghost aus mehreren Fahrten: Für jede Stelle der Strecke wird die Bewegungszeit gemittelt.
+ * Gilt bis zur kürzesten der Fahrten.
+ */
+export function averageGhost(ghosts: readonly Ghost[], stepM = 10): Ghost {
+  const valid = ghosts.filter((g) => g.distance.length > 1);
+  if (valid.length <= 1) return valid[0] ?? { distance: [], movingTime: [] };
+  const len = Math.min(...valid.map(ghostLength));
+  const pts: { distance: number; movingTime: number }[] = [];
+  for (let d = 0; ; d = Math.min(len, d + stepM)) {
+    const sum = valid.reduce((s, g) => s + (ghostTimeAt(g, d) ?? 0), 0);
+    pts.push({ distance: d, movingTime: sum / valid.length });
+    if (d >= len) break;
+  }
+  return buildGhost(pts);
+}

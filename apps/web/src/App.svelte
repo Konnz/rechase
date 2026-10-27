@@ -10,12 +10,20 @@
     type StoredRoute,
   } from './lib/db.ts';
   import { Duel } from './lib/duel.svelte.ts';
-  import DuelView from './lib/duel/DuelView.svelte';
+  import RideView from './lib/ride/RideView.svelte';
   import { download, toCsv, toGpx } from './lib/export.ts';
   import { fmtDate, fmtDay, fmtDuration, fmtGapSeconds, fmtInt, fmtKm, fmtKmh } from './lib/format.ts';
   import LiveMap from './lib/map/LiveMap.svelte';
   import MapView from './lib/map/MapView.svelte';
-  import { createRoute, evaluateRide, loadGhost, type RideResult } from './lib/routes.ts';
+  import {
+    AVERAGE_OF,
+    completedRides,
+    createRoute,
+    evaluateRide,
+    loadOpponent,
+    type GhostMode,
+    type RideResult,
+  } from './lib/routes.ts';
   import { replaySource } from './lib/sim.ts';
   import { PositionPreview } from './lib/preview.svelte.ts';
   import Summary from './lib/summary/Summary.svelte';
@@ -29,6 +37,31 @@
   /** Ergebnis der letzten Fahrt auf einer Strecke */
   let result = $state.raw<RideResult | { route: StoredRoute; incomplete: true } | null>(null);
   let notice = $state<string | null>(null);
+
+  const GHOST_MODE_KEY = 'rechase.ghostMode';
+  const loadGhostMode = (): GhostMode => {
+    try {
+      const v = localStorage.getItem(GHOST_MODE_KEY);
+      return v === 'last' || v === 'average' ? v : 'best';
+    } catch {
+      return 'best';
+    }
+  };
+  /** Gegen welchen eigenen Ghost Duelle laufen */
+  let ghostMode = $state<GhostMode>(loadGhostMode());
+  function setGhostMode(m: GhostMode) {
+    ghostMode = m;
+    try {
+      localStorage.setItem(GHOST_MODE_KEY, m);
+    } catch {
+      // Privater Modus: gilt bis zum Neuladen
+    }
+  }
+  const GHOST_MODES: { id: GhostMode; label: string }[] = [
+    { id: 'best', label: 'Bestzeit' },
+    { id: 'last', label: 'Letzte Fahrt' },
+    { id: 'average', label: `Ø ${AVERAGE_OF} Fahrten` },
+  ];
   /** Abschluss-Screen einer Fahrt, direkt nach dem Beenden oder aus der Liste */
   let summary = $state.raw<{ ride: StoredRide; simulated: boolean; result: typeof result } | null>(null);
 
@@ -63,7 +96,7 @@
       result = r ?? (d ? { route: d.stored, incomplete: true } : null);
     } else if (d && d.phase === 'finished') {
       // Simulation: Ergebnis zeigen, aber nichts speichern
-      result = { route: d.stored, time: d.time, previousBest: d.stored.bestTime, newBest: false };
+      result = { route: d.stored, time: d.time, previousBest: d.opponent.time, newBest: false };
     }
     await refresh();
     if (ride?.samples.length) summary = { ride, simulated: rec.simulated, result };
@@ -82,13 +115,13 @@
   async function startDuel(route: StoredRoute, simulate = false) {
     result = null;
     notice = null;
-    const ghost = await loadGhost(route);
-    if (!ghost) {
+    const opponent = await loadOpponent(route, ghostMode, rides);
+    if (!opponent) {
       notice = `Die Bestzeit-Fahrt von „${route.name}“ fehlt.`;
       return;
     }
     void requestPersistence();
-    const opts: Parameters<RideRecorder['start']>[0] = { duel: new Duel(route, ghost) };
+    const opts: Parameters<RideRecorder['start']>[0] = { duel: new Duel(route, opponent) };
     if (simulate) {
       const best = rides.find((r) => r.id === route.bestRideId);
       if (!best) return;
@@ -151,8 +184,8 @@
     route={duel?.route.points}
     ghost={duel && duel.phase !== 'approach' ? duel.ghostPos : null}
   />
-{:else if active && duel}
-  <DuelView {rec} {duel} onmap={() => (showMap = true)} onstop={stop} />
+{:else if active}
+  <RideView {rec} {duel} onstop={stop} />
 {:else}
 <main>
   <header>
@@ -273,13 +306,26 @@
   {#if routes.length}
     <section class="rides">
       <h2>Strecken</h2>
+      <div class="modes" role="radiogroup" aria-label="Gegner im Duell">
+        <span class="modelabel">Duell gegen</span>
+        {#each GHOST_MODES as m (m.id)}
+          <button role="radio" aria-checked={ghostMode === m.id} class:on={ghostMode === m.id} onclick={() => setGhostMode(m.id)}>
+            {m.label}
+          </button>
+        {/each}
+      </div>
       <ul>
         {#each routes as route (route.id)}
+          {@const lastDone = completedRides(route, rides)[0]}
           <li>
             <div>
               <span class="when">{route.name}</span>
               <span class="what">
-                {fmtKm(route.length)} km · Bestzeit {fmtDuration(route.bestTime)} vom {fmtDay(route.bestAt)} · {route.attempts}
+                {fmtKm(route.length)} km · Bestzeit {fmtDuration(route.bestTime)} vom {fmtDay(route.bestAt)}{lastDone &&
+                lastDone.id !== route.bestRideId &&
+                lastDone.routeTime != null
+                  ? ` · zuletzt ${fmtDuration(lastDone.routeTime)}`
+                  : ''} · {route.attempts}
                 {route.attempts === 1 ? 'Fahrt' : 'Fahrten'}
               </span>
               <span class="links">
@@ -572,6 +618,34 @@
     color: var(--bg);
     font-size: 15px;
     font-weight: 700;
+  }
+  .modes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0 4px 8px;
+  }
+  .modelabel {
+    font-size: 13px;
+    color: var(--muted);
+    margin-right: 2px;
+  }
+  .modes button {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 18px;
+    border: 1.5px solid var(--line);
+    background: none;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .modes button.on {
+    border-color: var(--ghost);
+    background: color-mix(in srgb, var(--ghost) 16%, transparent);
+    color: var(--ghost);
   }
   .rides h2 {
     margin: 12px 8px 6px;

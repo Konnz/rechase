@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGhost, compareToGhost, ghostDistanceAt, ghostTimeAt } from '../src/ghost.ts';
+import { averageGhost, buildGhost, compareToGhost, ghostDistanceAt, ghostTimeAt } from '../src/ghost.ts';
 
 // Ghost fährt konstant 10 m/s über 1000 m
 const ghost = buildGhost(Array.from({ length: 101 }, (_, i) => ({ distance: i * 10, movingTime: i * 1000 })));
@@ -35,5 +35,30 @@ describe('Ghost', () => {
       { distance: 20, movingTime: 3000 },
     ]);
     expect(g.distance).toEqual([0, 10, 20]);
+  });
+});
+
+describe('averageGhost', () => {
+  const at = (speed: number) =>
+    buildGhost(Array.from({ length: 101 }, (_, i) => ({ distance: i * 10, movingTime: (i * 10 * 1000) / speed })));
+
+  it('mittelt die Bewegungszeit an jeder Stelle', () => {
+    const g = averageGhost([at(10), at(5)]);
+    // 100 s und 200 s für 1 km: im Mittel 150 s
+    expect(ghostTimeAt(g, 1000)).toBeCloseTo(150_000);
+    expect(ghostTimeAt(g, 500)).toBeCloseTo(75_000);
+  });
+
+  it('liefert bei einer Fahrt genau diese', () => {
+    const one = at(10);
+    expect(averageGhost([one])).toBe(one);
+  });
+
+  it('endet an der kürzesten Fahrt', () => {
+    const short = buildGhost([
+      { distance: 0, movingTime: 0 },
+      { distance: 500, movingTime: 50_000 },
+    ]);
+    expect(averageGhost([at(10), short]).distance.at(-1)).toBe(500);
   });
 });

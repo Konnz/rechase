@@ -1,4 +1,13 @@
-import { buildRoute, finishTime, ghostFromSamples, type Ghost, type Route } from '@rechase/core';
+import {
+  averageGhost,
+  buildRoute,
+  elevationProfile,
+  finishTime,
+  ghostFromSamples,
+  type ElevationProfile,
+  type Ghost,
+  type Route,
+} from '@rechase/core';
 import { getRide, saveRide, saveRoute, type StoredRide, type StoredRoute } from './db.ts';
 
 /** Strecke für die Domänenlogik, die Distanzen werden aus den gespeicherten Punkten neu berechnet. */
@@ -27,10 +36,61 @@ export async function createRoute(ride: StoredRide, name: string): Promise<Store
   return stored;
 }
 
-/** Der Ghost einer Strecke: die Bestzeit-Fahrt, auf die Strecke projiziert. */
-export async function loadGhost(route: StoredRoute): Promise<Ghost | null> {
-  const ride = await getRide(route.bestRideId);
-  return ride ? ghostFromSamples(toRoute(route), ride.samples) : null;
+/** Gegen welchen eigenen Ghost man fährt */
+export type GhostMode = 'best' | 'last' | 'average';
+
+/** So viele letzte Fahrten fließen in den Durchschnitt ein */
+export const AVERAGE_OF = 5;
+
+export interface Opponent {
+  ghost: Ghost;
+  /** Kurzname für Namensschild und Kacheln, z. B. „Bestzeit“ */
+  short: string;
+  /** Für die Kopfzeile, z. B. „deine Bestzeit vom 14.09.“ */
+  label: string;
+  /** Zielzeit des Ghosts in ms */
+  time: number;
+  /** Höhenprofil der Strecke, falls die Fahrt Höhen hat */
+  profile: ElevationProfile | null;
+}
+
+/** Fahrten, die die Strecke ganz gefahren sind, die neueste zuerst. */
+export function completedRides(route: StoredRoute, rides: readonly StoredRide[]): StoredRide[] {
+  return rides
+    .filter((r) => r.id === route.bestRideId || (r.routeId === route.id && r.routeTime != null))
+    .sort((a, b) => b.startedAt - a.startedAt);
+}
+
+const dayOf = (t: number) => new Date(t).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+
+/** Der Ghost einer Strecke im gewählten Modus: Bestzeit, letzte Fahrt oder Durchschnitt der letzten Fahrten. */
+export async function loadOpponent(
+  route: StoredRoute,
+  mode: GhostMode,
+  rides: readonly StoredRide[],
+): Promise<Opponent | null> {
+  const r = toRoute(route);
+  const done = completedRides(route, rides);
+  const best = done.find((x) => x.id === route.bestRideId) ?? (await getRide(route.bestRideId));
+  if (!best) return null;
+  const profile = elevationProfile(r, best.samples);
+  if (mode === 'last' && done.length) {
+    const last = done[0];
+    const ghost = ghostFromSamples(r, last.samples);
+    return { ghost, short: 'Letzte Fahrt', label: `deine letzte Fahrt vom ${dayOf(last.startedAt)}`, time: finishTime(r, ghost) ?? 0, profile };
+  }
+  if (mode === 'average' && done.length > 1) {
+    const used = done.slice(0, AVERAGE_OF);
+    const ghost = averageGhost(used.map((x) => ghostFromSamples(r, x.samples)));
+    return { ghost, short: 'Durchschnitt', label: `deinen Durchschnitt aus ${used.length} Fahrten`, time: finishTime(r, ghost) ?? 0, profile };
+  }
+  return {
+    ghost: ghostFromSamples(r, best.samples),
+    short: 'Bestzeit',
+    label: `deine Bestzeit vom ${dayOf(route.bestAt)}`,
+    time: route.bestTime,
+    profile,
+  };
 }
 
 export interface RideResult {
