@@ -1,4 +1,4 @@
-import type { RideStats, SpeedSegment } from '@rechase/core';
+import type { RideStats, SpeedProfile } from '@rechase/core';
 import { fmtDate, fmtDuration, fmtInt, fmtKm, fmtKmh } from '../format.ts';
 import { speedColor } from './speedColor.ts';
 
@@ -13,7 +13,7 @@ export async function renderShareImage(opts: {
   startedAt: number;
   title?: string;
   stats: RideStats;
-  segments: SpeedSegment[];
+  profile: SpeedProfile;
 }): Promise<Blob | null> {
   await document.fonts?.ready;
   const c = document.createElement('canvas');
@@ -41,7 +41,7 @@ export async function renderShareImage(opts: {
   g.fillStyle = css('--surface-2') || '#111418';
   roundRect(g, box.x, box.y, box.w, box.h, 36);
   g.fill();
-  const pts = opts.segments.flatMap((s) => s.coords);
+  const pts = opts.profile.coords;
   if (pts.length > 1) {
     const lat0 = pts.reduce((s, p) => s + p[1], 0) / pts.length;
     const kx = Math.cos((lat0 * Math.PI) / 180);
@@ -61,9 +61,16 @@ export async function renderShareImage(opts: {
     stroke(g, pts.map(px));
     g.globalAlpha = 1;
     g.lineWidth = 12;
-    for (const s of opts.segments) {
-      g.strokeStyle = speedColor(s.level);
-      stroke(g, s.coords.map(px));
+    // Jedes Stück mit Verlauf zwischen den Farben seiner Endpunkte, damit nichts stuft
+    const xy = pts.map(px);
+    const lv = opts.profile.levels;
+    for (let i = 1; i < xy.length; i++) {
+      const [a, b] = [xy[i - 1]!, xy[i]!];
+      const grad = g.createLinearGradient(a[0], a[1], b[0], b[1]);
+      grad.addColorStop(0, speedColor(lv[i - 1]!));
+      grad.addColorStop(1, speedColor(lv[i]!));
+      g.strokeStyle = grad;
+      stroke(g, [a, b]);
     }
     dot(g, px(pts[0]!), '#f2f4f7');
     dot(g, px(pts.at(-1)!), css('--you') || '#ff7a1a');

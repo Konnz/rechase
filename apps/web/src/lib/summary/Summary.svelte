@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BIKE_CLASS_LABELS, bikeInfo, rideStats, speedSegments, type BikeType } from '@rechase/core';
+  import { BIKE_CLASS_LABELS, bikeInfo, rideStats, speedProfile, type BikeType } from '@rechase/core';
   import { onMount } from 'svelte';
   import type { StoredRide, StoredRoute } from '../db.ts';
   import { toGpx } from '../export.ts';
@@ -43,7 +43,7 @@
   const check = $derived(rideCheck(ride));
   const counts = $derived(rideCounts(ride));
   let pickBike = $state(false);
-  const speed = $derived(speedSegments(ride.samples));
+  const speed = $derived(speedProfile(ride.samples));
   let saved = $state.raw<StoredRoute | null>(null);
   const onRoute = $derived(saved ?? route);
   let busy = $state(false);
@@ -56,7 +56,7 @@
   const shareTitle = $derived(`re:chase · ${fmtKm(stats.distance)} km in ${fmtDuration(stats.movingTime)}`);
 
   onMount(() => {
-    void renderShareImage({ startedAt: ride.startedAt, title: onRoute?.name, stats, segments: speed.segments }).then(
+    void renderShareImage({ startedAt: ride.startedAt, title: onRoute?.name, stats, profile: speed }).then(
       (blob) => {
         if (blob) image = new File([blob], `rechase-${stamp}.png`, { type: 'image/png' });
       },
@@ -112,8 +112,8 @@
 
   <div class="scroll">
     <div class="mapbox">
-      {#if speed.segments.length}
-        <SummaryMap segments={speed.segments} />
+      {#if speed.coords.length > 1}
+        <SummaryMap profile={speed} />
         <div class="legend">
           <span>{fmtKmh(speed.min)}</span>
           <span class="bar" style:background={SPEED_GRADIENT}></span>
