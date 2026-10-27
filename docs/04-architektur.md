@@ -77,6 +77,8 @@ Siehe Dateien `Dockerfile`, `compose.yaml`, `deploy/update.sh`, `.github/workflo
 | Health | `/healthz` |
 | Grenzen | 256 MB, 0,5 CPU |
 
+**PIN-Sperre:** Solange die App in Entwicklung ist, verlangt der Server eine PIN (`APP_PIN` in `/opt/rechase/.env`). Nach richtiger Eingabe gilt ein Cookie 90 Tage; nach 10 Fehlversuchen ist die Adresse 15 Minuten gesperrt. `/healthz`, Manifest und Icons bleiben frei. Zum Abschalten die Zeile `APP_PIN` in `compose.yaml` entfernen.
+
 Rollback von Hand: `sudo -u rechase /opt/rechase/update.sh <voller-commit-sha>`
 
 Einmalige Einrichtung auf dem VPS: [deploy/EINRICHTUNG.md](../deploy/EINRICHTUNG.md)
