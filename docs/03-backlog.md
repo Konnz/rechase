@@ -6,6 +6,7 @@
 |---|---|---|
 | **R0 – Tech-Spike** | Beweisen, dass PWA-Tracking am Lenker zuverlässig genug ist | Halten GPS, Wake Lock und Akku eine Stunde durch? |
 | **R1 – MVP „Duell gegen mich“** | Eigene Strecke wiederholen und live gegen die eigene Bestzeit fahren | Macht der Ghost Spaß, und ist der Vergleich fair? |
+| **Feldtest** (zwischen R1 und R2) | Tester fahren echt, Fahrten landen mit Einwilligung auf dem Server, Adminbereich mit Dashboard und Tester-Strecken | Wo hakt es auf echten Fahrten, und wie gut stimmen GPS und Auto-Pause? |
 | **R2 – MVP+ „Re:“** | Konto, Radklasse, Ghost per Link teilen und beantworten, mehrere benannte Ghosts, Teilen auf Social Media und Strava | Entsteht der Kreislauf aus Einholen und Freigeben? |
 | **R3 – „Revier“** | Strecken und Gebiete erobern, Ränge, Badges, Punkte, Anti-Cheat Stufe 2 | Hält das Spiel Chaser über Wochen bei der Stange? |
 | **Später** | Automatische Streckenerkennung, native App, Sensoren auf iOS, Läufer | Skalieren und Reibung abbauen |
@@ -25,6 +26,7 @@ Details zu Community, Gamification, Radklassen, Anti-Cheat und Strava: [05-commu
 | 7 | Eigenen Ghost wählen: letzte Fahrt, Durchschnitt, Bestzeit | R1 | E4 |
 | 8 | Neues Layout der Fahransicht, Tippen auf Karte tauscht die Ansicht | R1 | E4, E5 |
 | 9 | Registrierung und Login per Google, Apple und manuell | R2 | E12 |
+| 10 | Adminbereich mit Datendashboard, in der Testphase mit den Strecken der Tester (27.10. abends) | Feldtest, ausgebaut in R2 | E22 |
 
 Prioritäten: **M** = Must (ohne geht der Release nicht), **S** = Should, **C** = Could.
 Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
@@ -158,6 +160,27 @@ Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
 
 ---
 
+## Feldtest (zwischen R1 und R2)
+
+Damit der Feldtest mit 5–10 Fahrern etwas bringt, müssen ihre Fahrten beim Team ankommen. Bisher bleiben Fahrten nur auf dem Handy; Konten gibt es schon (E12-1). Der Upload hier ist der erste Schritt zur Cloud-Sicherung (E12-2) und zum Teilen (E11).
+
+### Epic E22: Adminbereich und Datendashboard
+| ID | Story | Prio | Größe |
+|---|---|---|---|
+| E22-1 | Als Tester will ich ausdrücklich einwilligen, dass meine Fahrten für die Testphase hochgeladen und vom Team angesehen werden; die Einwilligung kann ich jederzeit zurückziehen. | M | S |
+| E22-2 | Als Tester will ich, dass beendete Fahrten automatisch hochgeladen werden (bei schlechtem Netz später nachgeholt), samt Rohpunkten, Auto-Pausen, Lücken, Gerät und Browser. | M | M |
+| E22-3 | Als Admin will ich mich mit meinem normalen Konto anmelden und über eine **Admin-Rolle** (per Env-Variable `ADMIN_EMAILS` vergeben) einen geschützten Bereich unter `/admin` öffnen. | M | S |
+| E22-4 | Als Admin will ich eine **Liste der Tester** sehen (Name, Rad, Gerät, Anzahl Fahrten, letzte Fahrt) und je Tester seine Fahrten. | M | M |
+| E22-5 | Als Admin will ich eine **Fahrt auf der Karte** sehen: Spur, Pausen, GPS-Lücken, verworfene Punkte, Tempo- und Genauigkeitsverlauf, Ergebnis gegen den Ghost. | M | L |
+| E22-6 | Als Admin will ich ein **Dashboard** mit Kennzahlen: aktive Tester pro Woche, Fahrten und Kilometer, Duelle und Siegquote, Anteil Fahrten mit Lücken, mittlere GPS-Genauigkeit, Akku pro Stunde (wo messbar), auffällige Fahrten, Aufteilung nach Gerät und Browser. | M | M |
+| E22-7 | Als Admin will ich Fahrten als GPX/CSV herunterladen, um Fehler nachzustellen (z. B. im Simulator Q-2). | S | S |
+| E22-8 | Als Admin will ich Widersprüche gegen die Cheating-Erkennung (E21-2) prüfen und eine Fahrt freigeben oder ablehnen. | S | M |
+| E22-9 | Als Admin will ich Konten sperren oder löschen und Tester-Daten nach Ende der Testphase gesammelt löschen. | S | S |
+
+**Datenschutz:** Nach dem Feldtest sieht der Adminbereich im Normalbetrieb nur noch **zusammengefasste** Zahlen. Einzelne Strecken bekommt der Admin dann nur noch bei gemeldeten oder auffälligen Fahrten zu sehen (E21-5, E22-8). Fahrten sind Standortdaten und damit personenbezogen.
+
+---
+
 ## R2 – MVP+ „Re:“ (Teilen)
 
 ### Epic E11: Ghosts teilen
@@ -266,6 +289,7 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 2. **Sprint 1:** E1, E2, E9, Q-1 → man kann fahren und eine faire Zeit aufzeichnen.
 3. **Sprint 2:** E3, E4-1 bis E4-3, Q-2 → Duell-Logik läuft im Simulator.
 4. **Sprint 3:** E4-4 bis E4-7, E5-1/E5-2, E6-1, E8-1 → erste echte Duellfahrt.
-5. **Sprint 4:** Rest der Must/Should aus R1 (inkl. E4-10, E4-11, E16), Feldtest mit 5–10 Fahrern.
-6. **R2:** zuerst E12 (Konto, Onboarding, Radklasse) und E21-1/E21-2 (Plausibilität), weil fremde Ghosts erst mit beidem fair sind. Dann E11, E17, E18.
-7. **R3:** E19 und E20 zusammen, dazu E21-3 bis E21-5.
+5. **Sprint 4:** Rest der Must/Should aus R1 (inkl. E4-10, E4-11, E16).
+6. **Feldtest:** E22-1 bis E22-6 vor dem Start, dann 2–3 Wochen mit 5–10 Fahrern; E22-7 bis E22-9 nach Bedarf.
+7. **R2:** zuerst E12 (Konto, Onboarding, Radklasse) und E21-1/E21-2 (Plausibilität), weil fremde Ghosts erst mit beidem fair sind. Dann E11, E17, E18.
+8. **R3:** E19 und E20 zusammen, dazu E21-3 bis E21-5.
