@@ -115,6 +115,17 @@ export function createPinGate(pin: string, now: () => number = Date.now): PinGat
 
       if (hasCookie(req)) return false;
 
+      // Ohne Cookie bliebe ein installierter Service Worker für immer auf seiner alten Version und zeigte
+      // nie das PIN-Formular. Statt eines 401 bekommt er einen Ersatz, der sich abmeldet und neu lädt.
+      if (url.pathname === '/sw.js') {
+        res.writeHead(200, {
+          'Content-Type': 'text/javascript; charset=utf-8',
+          'Cache-Control': 'no-store',
+        });
+        res.end(UNREGISTER_SW);
+        return true;
+      }
+
       // Seitenaufrufe bekommen das Formular, alles andere (Skripte, Service Worker) nur ein 401.
       const wantsPage = req.method === 'GET' && (req.headers.accept ?? '').includes('text/html');
       if (wantsPage) sendForm(res, 401);
@@ -124,7 +135,18 @@ export function createPinGate(pin: string, now: () => number = Date.now): PinGat
   };
 }
 
-const escapeHtml = (s: string) =>
+const UNREGISTER_SW = `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    self.registration
+      .unregister()
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then((clients) => Promise.all(clients.map((c) => c.navigate(c.url)))),
+  );
+});
+`;
+
+const escapeHtml =(s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 function formHtml(message: string) {

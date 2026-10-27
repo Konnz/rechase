@@ -47,7 +47,14 @@ describe('PIN-Sperre', () => {
   });
 
   it('blockt Dateien ohne Cookie mit 401', async () => {
-    expect((await fetch(`${base}/sw.js`)).status).toBe(401);
+    expect((await fetch(`${base}/assets/app.js`)).status).toBe(401);
+  });
+
+  it('gibt einem alten Service Worker ohne Cookie einen Ersatz, der sich abmeldet', async () => {
+    const res = await fetch(`${base}/sw.js`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('javascript');
+    expect(await res.text()).toContain('unregister()');
   });
 
   it('lehnt eine falsche PIN ab', async () => {
