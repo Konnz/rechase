@@ -16,3 +16,20 @@ export function fmtDuration(ms: number): string {
 
 export const fmtDate = (t: number) =>
   new Date(t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+export const fmtDay = (t: number) => new Date(t).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+
+const MINUS = '−';
+const sign = (n: number) => (n < 0 ? MINUS : '+');
+
+/** Abstand in Metern aus deiner Sicht: −38 m heißt, der Ghost liegt 38 m vorn. */
+export function fmtGapMeters(ghostAheadM: number): string {
+  const m = Math.round(ghostAheadM);
+  return m === 0 ? '0 m' : `${sign(-m)}${nf0.format(Math.abs(m))} m`;
+}
+
+/** Zeitabstand ohne Vorzeichen: 5,2 s bzw. ab einer Minute 1:05 min */
+export function fmtGapSeconds(s: number): string {
+  const a = Math.abs(s);
+  return a < 60 ? `${nf1.format(a)} s` : `${fmtDuration(a * 1000)} min`;
+}

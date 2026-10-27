@@ -1,10 +1,39 @@
 import { MotionTracker, type MotionSample, type TrackPoint } from '@rechase/core';
 import { saveRide, type StoredRide } from './db.ts';
+import type { Duel } from './duel.svelte.ts';
 import type { LatLon } from './map/LiveMap.svelte';
 
 type Status = 'idle' | 'starting' | 'recording' | 'stopped' | 'error';
 
 const SAVE_EVERY_MS = 5000;
+
+type PositionLike = Pick<GeolocationPosition, 'timestamp'> & {
+  coords: Pick<GeolocationCoordinates, 'latitude' | 'longitude' | 'altitude' | 'speed' | 'accuracy'>;
+};
+
+/** Liefert Positionen, bis die zurückgegebene Funktion aufgerufen wird. */
+export type PositionSource = (
+  onPosition: (pos: PositionLike) => void,
+  onError: (err: GeolocationPositionError) => void,
+) => () => void;
+
+const gpsSource: PositionSource = (onPosition, onError) => {
+  const id = navigator.geolocation.watchPosition(onPosition, onError, {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 20_000,
+  });
+  return () => navigator.geolocation.clearWatch(id);
+};
+
+export interface StartOptions {
+  /** Duell gegen den Ghost einer Strecke */
+  duel?: Duel;
+  /** Statt GPS, z. B. der Simulator */
+  source?: PositionSource;
+  /** Simulierte Fahrten werden nicht gespeichert */
+  persist?: boolean;
+}
 
 /**
  * Zeichnet eine Fahrt auf: GPS mit hoher Genauigkeit, Bildschirm wach halten, laufend in IndexedDB sichern.
@@ -22,15 +51,18 @@ export class RideRecorder {
   points = $state(0);
   /** Gefahrene Spur für die Karte, nur Punkte in Bewegung (keine Drift an der Ampel) */
   track = $state.raw<LatLon[]>([]);
+  duel = $state.raw<Duel | null>(null);
+  simulated = $state(false);
 
   private motion = new MotionTracker();
   private ride: StoredRide | null = null;
-  private watchId: number | null = null;
+  private unwatch: (() => void) | null = null;
+  private persistRide = true;
   private lock: WakeLockSentinel | null = null;
   private lastSave = 0;
 
-  async start() {
-    if (!('geolocation' in navigator)) {
+  async start({ duel, source, persist = true }: StartOptions = {}) {
+    if (!source && !('geolocation' in navigator)) {
       this.fail('Dieses Gerät bietet keine Standortbestimmung.');
       return;
     }
@@ -40,6 +72,9 @@ export class RideRecorder {
     this.current = null;
     this.lastRaw = null;
     this.track = [];
+    this.duel = duel ?? null;
+    this.simulated = !!source;
+    this.persistRide = persist;
     this.hiddenCount = this.gaps = this.rejected = this.points = 0;
     this.ride = {
       id: crypto.randomUUID(),
@@ -50,21 +85,18 @@ export class RideRecorder {
       gaps: 0,
       rejected: 0,
       userAgent: navigator.userAgent,
+      ...(duel ? { routeId: duel.stored.id } : {}),
     };
 
     await this.acquireWakeLock();
     document.addEventListener('visibilitychange', this.onVisibility);
 
-    this.watchId = navigator.geolocation.watchPosition(this.onPosition, this.onError, {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 20_000,
-    });
+    this.unwatch = (source ?? gpsSource)(this.onPosition, this.onError);
   }
 
   async stop(): Promise<StoredRide | null> {
-    if (this.watchId != null) navigator.geolocation.clearWatch(this.watchId);
-    this.watchId = null;
+    this.unwatch?.();
+    this.unwatch = null;
     document.removeEventListener('visibilitychange', this.onVisibility);
     await this.lock?.release().catch(() => {});
     this.lock = null;
@@ -79,7 +111,7 @@ export class RideRecorder {
     return ride;
   }
 
-  private onPosition = (pos: GeolocationPosition) => {
+  private onPosition = (pos: PositionLike) => {
     const ride = this.ride;
     if (!ride) return;
     const c = pos.coords;
@@ -101,6 +133,7 @@ export class RideRecorder {
       ride.samples.push(sample);
       this.current = sample;
       if (sample.moving) this.track = [...this.track, { lat: sample.lat, lon: sample.lon }];
+      this.duel?.push(sample);
     }
     this.gaps = ride.gaps = this.motion.gaps;
     this.rejected = ride.rejected = this.motion.rejected;
@@ -144,6 +177,7 @@ export class RideRecorder {
   }
 
   private async persist(ride: StoredRide) {
+    if (!this.persistRide) return;
     try {
       await saveRide(ride);
     } catch (e) {

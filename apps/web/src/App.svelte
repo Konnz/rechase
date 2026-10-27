@@ -1,15 +1,32 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { deleteRide, listRides, requestPersistence, type StoredRide } from './lib/db.ts';
+  import {
+    deleteRide,
+    deleteRoute,
+    listRides,
+    listRoutes,
+    requestPersistence,
+    type StoredRide,
+    type StoredRoute,
+  } from './lib/db.ts';
+  import { Duel } from './lib/duel.svelte.ts';
+  import DuelView from './lib/duel/DuelView.svelte';
   import { download, toCsv, toGpx } from './lib/export.ts';
-  import { fmtDate, fmtDuration, fmtInt, fmtKm, fmtKmh } from './lib/format.ts';
+  import { fmtDate, fmtDay, fmtDuration, fmtGapSeconds, fmtInt, fmtKm, fmtKmh } from './lib/format.ts';
   import LiveMap from './lib/map/LiveMap.svelte';
   import MapView from './lib/map/MapView.svelte';
+  import { createRoute, evaluateRide, loadGhost, type RideResult } from './lib/routes.ts';
+  import { replaySource } from './lib/sim.ts';
   import { RideRecorder } from './lib/tracker.svelte.ts';
 
   const rec = new RideRecorder();
-  let rides = $state<StoredRide[]>([]);
+  // raw: IndexedDB kann keine $state-Proxys speichern
+  let rides = $state.raw<StoredRide[]>([]);
+  let routes = $state.raw<StoredRoute[]>([]);
   let showMap = $state(false);
+  /** Ergebnis der letzten Fahrt auf einer Strecke */
+  let result = $state.raw<RideResult | { route: StoredRoute; incomplete: true } | null>(null);
+  let notice = $state<string | null>(null);
 
   const active = $derived(rec.status === 'starting' || rec.status === 'recording');
   const cur = $derived(rec.current);
@@ -18,23 +35,81 @@
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
+  const duel = $derived(rec.duel);
+  const bestOf = $derived(new Map(routes.map((r) => [r.bestRideId, r])));
+  const routeById = $derived(new Map(routes.map((r) => [r.id, r])));
+
   async function refresh() {
-    rides = await listRides().catch(() => []);
+    [rides, routes] = await Promise.all([listRides().catch(() => []), listRoutes().catch(() => [])]);
+  }
+
+  async function stop() {
+    const d = rec.duel;
+    const ride = await rec.stop();
+    showMap = false;
+    result = null;
+    if (ride && !rec.simulated) {
+      const r = await evaluateRide(ride, routes);
+      result = r ?? (d ? { route: d.stored, incomplete: true } : null);
+    } else if (d && d.phase === 'finished') {
+      // Simulation: Ergebnis zeigen, aber nichts speichern
+      result = { route: d.stored, time: d.time, previousBest: d.stored.bestTime, newBest: false };
+    }
+    await refresh();
   }
 
   async function toggle() {
     if (active) {
-      await rec.stop();
-      await refresh();
+      await stop();
     } else {
       void requestPersistence();
+      result = null;
       await rec.start();
     }
   }
 
+  async function startDuel(route: StoredRoute, simulate = false) {
+    result = null;
+    notice = null;
+    const ghost = await loadGhost(route);
+    if (!ghost) {
+      notice = `Die Bestzeit-Fahrt von „${route.name}“ fehlt.`;
+      return;
+    }
+    void requestPersistence();
+    const opts: Parameters<RideRecorder['start']>[0] = { duel: new Duel(route, ghost) };
+    if (simulate) {
+      const best = rides.find((r) => r.id === route.bestRideId);
+      if (!best) return;
+      // ?pace=1.05 fährt 5 % langsamer als die Bestzeit, Standard 3 % schneller
+      const pace = Number(new URLSearchParams(location.search).get('pace')) || undefined;
+      opts.source = replaySource(best.raw, { pace });
+      opts.persist = false;
+    }
+    await rec.start(opts);
+  }
+
+  async function remember(r: StoredRide) {
+    const name = prompt('Wie soll die Strecke heißen?', 'Hausrunde')?.trim();
+    if (!name) return;
+    await createRoute(r, name);
+    await refresh();
+  }
+
   async function remove(id: string) {
-    if (!confirm('Diese Fahrt löschen?')) return;
+    const best = bestOf.get(id);
+    const msg = best
+      ? `Diese Fahrt ist die Bestzeit von „${best.name}“. Mit ihr wird auch die Strecke gelöscht.`
+      : 'Diese Fahrt löschen?';
+    if (!confirm(msg)) return;
     await deleteRide(id);
+    if (best) await deleteRoute(best.id);
+    await refresh();
+  }
+
+  async function removeRoute(route: StoredRoute) {
+    if (!confirm(`Strecke „${route.name}“ löschen? Die Fahrten bleiben erhalten.`)) return;
+    await deleteRoute(route.id);
     await refresh();
   }
 
@@ -45,7 +120,15 @@
 </script>
 
 {#if showMap}
-  <MapView {rec} onclose={() => (showMap = false)} />
+  <MapView
+    {rec}
+    onclose={() => (showMap = false)}
+    title={duel?.stored.name}
+    route={duel?.route.points}
+    ghost={duel && duel.phase !== 'approach' ? duel.ghostPos : null}
+  />
+{:else if active && duel}
+  <DuelView {rec} {duel} onmap={() => (showMap = true)} onstop={stop} />
 {:else}
 <main>
   <header>
@@ -123,6 +206,57 @@
     <p class="note">Während der Fahrt bleibt der Bildschirm an. Bitte nicht sperren, sonst entstehen Lücken.</p>
   {/if}
 
+  {#if result}
+    <section class="result" aria-live="polite">
+      {#if 'incomplete' in result}
+        <span class="label">{result.route.name}</span>
+        <span class="headline">Strecke nicht zu Ende gefahren</span>
+        <span class="what">Gewertet wird nur, wer vom Start bis ins Ziel fährt.</span>
+      {:else}
+        {@const delta = (result.time - result.previousBest) / 1000}
+        <span class="label">{result.route.name}{rec.simulated ? ' · Simulation' : ''}</span>
+        <span class="headline" class:win={delta < 0}>
+          {delta < 0 ? 'Bestzeit geschlagen' : 'Bestzeit hält'}
+        </span>
+        <span class="what">
+          {fmtDuration(result.time)} bewegt · {delta < 0 ? '\u2212' : '+'}{fmtGapSeconds(delta)} gegenüber {fmtDuration(
+            result.previousBest,
+          )}{result.newBest ? ' · ist jetzt dein Ghost' : ''}{rec.simulated ? ' · nicht gespeichert' : ''}
+        </span>
+      {/if}
+    </section>
+  {/if}
+
+  {#if notice}
+    <p class="error" role="alert">{notice}</p>
+  {/if}
+
+  {#if routes.length}
+    <section class="rides">
+      <h2>Strecken</h2>
+      <ul>
+        {#each routes as route (route.id)}
+          <li>
+            <div>
+              <span class="when">{route.name}</span>
+              <span class="what">
+                {fmtKm(route.length)} km · Bestzeit {fmtDuration(route.bestTime)} vom {fmtDay(route.bestAt)} · {route.attempts}
+                {route.attempts === 1 ? 'Fahrt' : 'Fahrten'}
+              </span>
+              <span class="links">
+                <button class="link" disabled={active} onclick={() => startDuel(route, true)}>Simulieren</button>
+                <button class="link" disabled={active} onclick={() => removeRoute(route)}>Löschen</button>
+              </span>
+            </div>
+            <div class="actions">
+              <button class="duel" disabled={active} onclick={() => startDuel(route)}>Duell</button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
   {#if rides.length}
     <section class="rides">
       <h2>Aufzeichnungen</h2>
@@ -135,6 +269,15 @@
               <span class="what">
                 {fmtKm(last?.distance ?? 0)} km · {fmtDuration(last?.movingTime ?? 0)} bewegt · {r.gaps} Lücken
               </span>
+              {#if r.routeId && routeById.get(r.routeId)}
+                <span class="what route">
+                  {routeById.get(r.routeId)!.name}{r.routeTime != null ? ` · ${fmtDuration(r.routeTime)}` : ' · nicht beendet'}{bestOf.has(r.id)
+                    ? ' · Bestzeit'
+                    : ''}
+                </span>
+              {:else if r.endedAt && !active}
+                <span class="links"><button class="link" onclick={() => remember(r)}>Als Strecke merken</button></span>
+              {/if}
             </div>
             <div class="actions">
               <button onclick={() => download(fileName(r, 'gpx'), toGpx(r), 'application/gpx+xml')}>GPX</button>
@@ -308,6 +451,55 @@
     background: var(--surface);
     color: var(--text);
     border: 1.5px solid var(--rec);
+  }
+  .result {
+    background: var(--surface-2);
+    border-radius: 16px;
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .headline {
+    font-family: var(--font-num);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.05;
+    color: var(--ghost);
+  }
+  .headline.win {
+    color: var(--you);
+  }
+  .route {
+    color: var(--ghost);
+  }
+  .links {
+    display: flex;
+    gap: 16px;
+    margin-top: 2px;
+  }
+  .link {
+    padding: 6px 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+  .link:disabled,
+  .actions button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .actions .duel {
+    padding: 0 16px;
+    background: var(--you);
+    color: var(--bg);
+    font-size: 15px;
+    font-weight: 700;
   }
   .rides h2 {
     margin: 12px 8px 6px;

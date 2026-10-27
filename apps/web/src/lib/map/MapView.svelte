@@ -1,9 +1,21 @@
 <script lang="ts">
   import { fmtDuration, fmtInt, fmtKm, fmtKmh } from '../format.ts';
   import type { RideRecorder } from '../tracker.svelte.ts';
-  import LiveMap from './LiveMap.svelte';
+  import LiveMap, { type LatLon } from './LiveMap.svelte';
 
-  let { rec, onclose }: { rec: RideRecorder; onclose: () => void } = $props();
+  let {
+    rec,
+    onclose,
+    title = 'Aktuelle Fahrt',
+    route = [],
+    ghost = null,
+  }: {
+    rec: RideRecorder;
+    onclose: () => void;
+    title?: string;
+    route?: readonly LatLon[];
+    ghost?: LatLon | null;
+  } = $props();
 
   let following = $state(true);
   const cur = $derived(rec.current);
@@ -16,14 +28,14 @@
       <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"></path></svg>
     </button>
     <div class="title">
-      <span class="name">Aktuelle Fahrt</span>
+      <span class="name">{title}</span>
       <span class="sub">Karte · {following ? 'folgt dir' : 'frei verschoben'}</span>
     </div>
     <span class="dot" class:on={active} aria-hidden="true"></span>
   </header>
 
   <div class="mapbox">
-    <LiveMap position={cur} track={rec.track} bind:following />
+    <LiveMap position={cur} track={rec.track} {route} {ghost} bind:following />
 
     <div class="chip">
       <span class="label">Strecke</span>
