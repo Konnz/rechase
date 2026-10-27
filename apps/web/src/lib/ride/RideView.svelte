@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { Duel } from '../duel.svelte.ts';
   import { fmtDuration, fmtGapMeters, fmtGapSeconds, fmtInt, fmtKm, fmtKmh } from '../format.ts';
   import LiveMap from '../map/LiveMap.svelte';
@@ -27,8 +28,8 @@
     onstop,
   }: { rec: RideRecorder; duel?: Duel | null; figure?: FigureVariant; onstop: () => void } = $props();
 
-  /** true: Karte groß, Straße klein oben rechts */
-  let swapped = $state(false);
+  /** true: Karte groß, Straße klein oben rechts. Bei freier Fahrt zählt die Karte, im Duell die Chase-Sicht. */
+  let swapped = $state(untrack(() => !duel));
   // Die Zeichenfläche wächst mit der Höhe der Ansicht nach oben in den Himmel, damit seitlich wenig abgeschnitten wird
   let sceneW = $state(390);
   let sceneH = $state(600);
