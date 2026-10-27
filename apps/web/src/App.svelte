@@ -17,6 +17,7 @@
   import MapView from './lib/map/MapView.svelte';
   import { createRoute, evaluateRide, loadGhost, type RideResult } from './lib/routes.ts';
   import { replaySource } from './lib/sim.ts';
+  import { PositionPreview } from './lib/preview.svelte.ts';
   import { RideRecorder } from './lib/tracker.svelte.ts';
 
   const rec = new RideRecorder();
@@ -30,6 +31,12 @@
 
   const active = $derived(rec.status === 'starting' || rec.status === 'recording');
   const cur = $derived(rec.current);
+  const preview = new PositionPreview();
+  // Vor dem Start zeigt die Karte den Standort aus der Vorschau, während der Aufnahme den gefilterten
+  const mapPos = $derived(active ? (cur ?? rec.lastRaw) : (preview.position ?? cur));
+  $effect(() => {
+    preview.active = !active;
+  });
   const standalone =
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -123,7 +130,8 @@
   <MapView
     {rec}
     onclose={() => (showMap = false)}
-    title={duel?.stored.name}
+    position={mapPos}
+    title={duel?.stored.name ?? (active ? undefined : 'Vor dem Start')}
     route={duel?.route.points}
     ghost={duel && duel.phase !== 'approach' ? duel.ghostPos : null}
   />
@@ -179,11 +187,26 @@
     </div>
   </section>
 
-  {#if active || rec.track.length}
+  {#if preview.permission === 'granted' || active || rec.track.length}
     <button class="minimap" aria-label="Karte im Folgemodus öffnen" onclick={() => (showMap = true)}>
-      <LiveMap position={cur} track={rec.track} mini />
+      <LiveMap position={mapPos} track={rec.track} mini />
       <span class="maplabel">Karte</span>
+      {#if !active && preview.accuracy != null}
+        <span class="fix" class:good={preview.accuracy <= 20}>GPS ±{fmtInt(preview.accuracy)} m</span>
+      {/if}
     </button>
+  {:else if preview.permission === 'prompt'}
+    <button class="minimap ask" onclick={() => preview.ask()}>
+      <span class="maplabel">Karte</span>
+      <span class="asktext">Standort anzeigen</span>
+      <span class="askhint">Für Karte und GPS-Empfang vor dem Start</span>
+    </button>
+  {:else if preview.permission === 'denied'}
+    <div class="minimap ask">
+      <span class="maplabel">Karte</span>
+      <span class="asktext">Standort blockiert</span>
+      <span class="askhint">In den Browser-Einstellungen für diese Seite erlauben</span>
+    </div>
   {/if}
 
   <section class="diag" aria-label="Technische Werte">
@@ -408,6 +431,37 @@
     overflow: hidden;
     background: var(--surface);
     cursor: pointer;
+  }
+  .fix {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    background: rgba(13, 15, 18, 0.82);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .fix.good {
+    color: var(--text);
+  }
+  .ask {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--text);
+  }
+  .asktext {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--you);
+  }
+  .askhint {
+    font-size: 13px;
+    color: var(--muted);
   }
   .maplabel {
     position: absolute;
