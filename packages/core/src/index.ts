@@ -8,3 +8,4 @@ export * from './geoid.ts';
 export * from './sections.ts';
 export * from './cues.ts';
 export * from './bikes.ts';
+export * from './plausibility.ts';

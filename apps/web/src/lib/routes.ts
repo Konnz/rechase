@@ -2,12 +2,14 @@ import {
   averageGhost,
   bestSectionTimes,
   buildRoute,
+  checkPlausibility,
   elevationProfile,
   finishTime,
   ghostFromSamples,
   sectionBounds,
   type ElevationProfile,
   type Ghost,
+  type Plausibility,
   type Route,
 } from '@rechase/core';
 import { getRide, saveRide, saveRoute, type StoredRide, type StoredRoute } from './db.ts';
@@ -17,6 +19,18 @@ export const toRoute = (r: StoredRoute): Route => buildRoute(r.points, 0);
 
 /** Bewegungszeit einer Fahrt von Start bis Ziel der Strecke, oder null. */
 export const timeOnRoute = (route: Route, ride: StoredRide) => finishTime(route, ghostFromSamples(route, ride.samples));
+
+const checks = new WeakMap<StoredRide, Plausibility>();
+
+/** Plausibilität einer Fahrt mit dem gewählten Rad (Anti-Cheat Stufe 1), je Fahrt nur einmal berechnet. */
+export function rideCheck(ride: StoredRide): Plausibility {
+  let c = checks.get(ride);
+  if (!c) checks.set(ride, (c = checkPlausibility(ride.samples, ride.bike)));
+  return c;
+}
+
+/** Zählt die Fahrt für Bestzeiten und Ghosts? Auffällige Fahrten erst nach Widerspruch. */
+export const rideCounts = (ride: StoredRide) => ride.appealedAt != null || rideCheck(ride).ok;
 
 /** Merkt eine beendete Fahrt als Strecke; sie ist zugleich die erste Bestzeit. */
 export async function createRoute(ride: StoredRide, name: string): Promise<StoredRoute> {
@@ -59,7 +73,7 @@ export interface Opponent {
 /** Fahrten, die die Strecke ganz gefahren sind, die neueste zuerst. */
 export function completedRides(route: StoredRoute, rides: readonly StoredRide[]): StoredRide[] {
   return rides
-    .filter((r) => r.id === route.bestRideId || (r.routeId === route.id && r.routeTime != null))
+    .filter((r) => r.id === route.bestRideId || (r.routeId === route.id && r.routeTime != null && rideCounts(r)))
     .sort((a, b) => b.startedAt - a.startedAt);
 }
 
@@ -103,7 +117,7 @@ export function sectionBestsFor(route: StoredRoute, rides: readonly StoredRide[]
   const r = toRoute(route);
   const bounds = sectionBounds(r.length);
   if (!bounds.length) return [];
-  const on = rides.filter((x) => x.id === route.bestRideId || x.routeId === route.id);
+  const on = rides.filter((x) => x.id === route.bestRideId || (x.routeId === route.id && rideCounts(x)));
   return bestSectionTimes(
     on.map((x) => ghostFromSamples(r, x.samples)),
     bounds,
@@ -117,11 +131,14 @@ export interface RideResult {
   /** Bestzeit vor dieser Fahrt in ms */
   previousBest: number;
   newBest: boolean;
+  /** false: Die Fahrt ist auffällig und zählt nicht, die Bestzeit bleibt unberührt */
+  counted: boolean;
 }
 
 /**
  * Vergleicht eine beendete Fahrt mit der Bestzeit und übernimmt sie, wenn sie schneller war.
  * Ohne vorgegebene Strecke werden alle gemerkten Strecken geprüft, die erste, die ganz gefahren wurde, zählt.
+ * Eine auffällige Fahrt wird der Strecke zugeordnet, zählt aber weder als Fahrt noch als Bestzeit.
  */
 export async function evaluateRide(ride: StoredRide, routes: StoredRoute[]): Promise<RideResult | null> {
   const candidates = ride.routeId ? routes.filter((r) => r.id === ride.routeId) : routes;
@@ -132,6 +149,10 @@ export async function evaluateRide(ride: StoredRide, routes: StoredRoute[]): Pro
       if (ride.routeId) await saveRide({ ...ride, routeTime: null });
       continue;
     }
+    if (!rideCounts(ride)) {
+      await saveRide({ ...ride, routeId: route.id, routeTime: time });
+      return { route, time, previousBest: route.bestTime, newBest: false, counted: false };
+    }
     const newBest = time < route.bestTime;
     const updated: StoredRoute = {
       ...route,
@@ -140,7 +161,7 @@ export async function evaluateRide(ride: StoredRide, routes: StoredRoute[]): Pro
     };
     await saveRoute(updated);
     await saveRide({ ...ride, routeId: route.id, routeTime: time });
-    return { route: updated, time, previousBest: route.bestTime, newBest };
+    return { route: updated, time, previousBest: route.bestTime, newBest, counted: true };
   }
   return null;
 }

@@ -203,6 +203,8 @@ Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
 | E21-1 | Als Chaser will ich, dass öffentliche Ghosts **plausibel** sind: Prüfung von Höchsttempo je Radklasse, Beschleunigung, Steigleistung und GPS-Sprüngen auf dem Server. | M | M |
 | E21-2 | Als Fahrer will ich bei einer auffälligen Fahrt sehen, warum sie nicht gewertet wird, und die Radklasse korrigieren oder widersprechen können. | M | S |
 
+Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrten zählen nicht für Bestzeit, Ghost und Abschnitts-PRs, bis der Fahrer das Rad korrigiert oder widerspricht. Der Widerspruch gilt nur für die eigenen Bestzeiten; sobald Fahrten hochgeladen werden (E11), prüft der Server mit derselben Funktion aus `packages/core` und ein Widerspruch geht an den Admin.
+
 ---
 
 ## R3 – „Revier“

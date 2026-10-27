@@ -142,6 +142,19 @@ Sobald andere Chaser Ghosts sehen und Strecken erobern, lohnt sich Schummeln. Er
 - Beschleunigung: Sprünge von 0 auf 40 km/h in 3 s passen zu Auto, nicht zu Rad.
 - Teleport: GPS-Lücken mit unmöglicher Durchschnittsgeschwindigkeit.
 
+Umgesetzt in `packages/core/src/plausibility.ts` (läuft in der App, später unverändert auf dem Server). Grenzen, an der Probefahrt mit dem Pixel 10 Pro gegengeprüft (dort höchstens 28 km/h über 30 s und 22 km/h über 5 min):
+
+| | Muskelkraft | E-Bike | S-Pedelec |
+|---|---|---|---|
+| 30 s Bewegungszeit, jede Steigung | 80 km/h | 80 km/h | 80 km/h |
+| 30 s, ohne Gefälle (ab −2 %) | 60 km/h | 45 km/h | 60 km/h |
+| 5 min, ohne Gefälle | 48 km/h | 33 km/h | 52 km/h |
+| Steigleistung über 5 min, ab 100 Hm | 1.800 m/h | 3.200 m/h | 4.000 m/h |
+| 0 auf 40 km/h, danach 10 s über 35 km/h | unter 5 s | unter 5 s | unter 5 s |
+| Positionssprung über eine Lücke ab 5 s und 200 m | über 80 km/h | über 80 km/h | über 80 km/h |
+
+Höhen kommen vorerst aus dem GPS, mit gleitendem Median gegen Sprünge; fehlen sie, gilt die Strecke als flach. Fällt eine Fahrt auf, wird geprüft, ob sie zu einer anderen Klasse passt, und diese vorgeschlagen; passt sie zu keiner, lautet der Hinweis „Auto oder Bahn“. Stadtverkehr bis 50 km/h mit Halten (Tram, Bus, Auto) erkennt erst Stufe 2.
+
 **Stufe 2: Kontext (R3)**
 - **Straßenbahn und Bus:** Fahrt liegt auf Gleisen oder Buslinien (OpenStreetMap) und hält regelmäßig an Haltestellen für 15 bis 40 s.
 - **Auto:** Fahrt nutzt Straßen, die für Räder gesperrt sind (Autobahn, Kraftfahrstraße), oder verläuft auf Abschnitten ohne Radweg mit Autotempo.

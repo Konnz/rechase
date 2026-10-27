@@ -12,6 +12,7 @@
     listRides,
     listRoutes,
     requestPersistence,
+    saveRide,
     type StoredRide,
     type StoredRoute,
   } from './lib/db.ts';
@@ -27,6 +28,7 @@
     createRoute,
     evaluateRide,
     loadOpponent,
+    rideCounts,
     sectionBestsFor,
     type GhostMode,
     type RideResult,
@@ -141,7 +143,7 @@
       result = r ?? (d ? { route: d.stored, incomplete: true } : null);
     } else if (d && d.phase === 'finished') {
       // Simulation: Ergebnis zeigen, aber nichts speichern
-      result = { route: d.stored, time: d.time, previousBest: d.opponent.time, newBest: false };
+      result = { route: d.stored, time: d.time, previousBest: d.opponent.time, newBest: false, counted: true };
     }
     await refresh();
     if (ride?.samples.length) summary = { ride, simulated: rec.simulated, result, sectionPrs: d?.sectionPrs.length };
@@ -190,6 +192,22 @@
     const route = await createRoute(r, name);
     await refresh();
     return route;
+  }
+
+  /**
+   * Rad einer auffälligen Fahrt korrigieren oder widersprechen. Zählt sie danach, wird sie
+   * nachträglich auf ihrer Strecke gewertet.
+   */
+  async function amend(ride: StoredRide, change: Pick<StoredRide, 'bike' | 'appealedAt'>): Promise<StoredRide> {
+    const updated: StoredRide = { ...ride, ...change };
+    await saveRide(updated);
+    let r: RideResult | null = null;
+    if (!rideCounts(ride) && rideCounts(updated)) r = await evaluateRide(updated, routes);
+    await refresh();
+    const saved = rides.find((x) => x.id === ride.id) ?? updated;
+    if (summary?.ride.id === ride.id) summary = { ...summary, ride: saved, result: r ?? summary.result };
+    if (r && result && !('incomplete' in result) && result.route.id === r.route.id) result = r;
+    return saved;
   }
 
   async function remove(id: string) {
@@ -260,6 +278,7 @@
     simulated={s.simulated}
     sectionPrs={s.sectionPrs}
     onsave={remember}
+    onamend={amend}
     onclose={() => (summary = null)}
   />
 {:else if showMap}
@@ -400,6 +419,10 @@
         <span class="label">{result.route.name}</span>
         <span class="headline">Strecke nicht zu Ende gefahren</span>
         <span class="what">Gewertet wird nur, wer vom Start bis ins Ziel fährt.</span>
+      {:else if !result.counted}
+        <span class="label">{result.route.name}</span>
+        <span class="headline">Nicht gewertet</span>
+        <span class="what">{fmtDuration(result.time)} bewegt · Die Fahrt passt nicht zu deinem Rad, Details in der Auswertung.</span>
       {:else}
         {@const delta = (result.time - result.previousBest) / 1000}
         <span class="label">{result.route.name}{rec.simulated ? ' · Simulation' : ''}</span>
@@ -472,7 +495,7 @@
               <span class="what">
                 {fmtKm(last?.distance ?? 0)} km · {fmtDuration(last?.movingTime ?? 0)} bewegt{r.bike
                   ? ` · ${bikeInfo(r.bike).label}`
-                  : ''} · {r.gaps} Lücken
+                  : ''} · {r.gaps} Lücken{r.endedAt && !rideCounts(r) ? ' · nicht gewertet' : ''}
               </span>
               {#if r.routeId && routeById.get(r.routeId)}
                 <span class="what route">
@@ -480,7 +503,7 @@
                     ? ' · Bestzeit'
                     : ''}
                 </span>
-              {:else if r.endedAt && !active}
+              {:else if r.endedAt && !active && rideCounts(r)}
                 <span class="links"><button class="link" onclick={() => remember(r)}>Als Strecke merken</button></span>
               {/if}
             </div>
