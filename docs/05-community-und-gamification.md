@@ -60,7 +60,10 @@ Mit der späteren automatischen Streckenerkennung (E13) entstehen Abschnitte von
 
 ### Sicherheitsregeln für Eroberungen
 - **Abfahrten zählen nicht** für Besitz und Rangpunkte (Abschnitte mit mehr als ca. 4 % Gefälle über 300 m werden neutralisiert). Das ist die Lehre aus den Strava-Abfahrts-KOMs.
-- Abschnitte mit vielen Kreuzungen oder durch verkehrsberuhigte Zonen können als „neutral“ markiert werden. Die Zeit läuft dort, aber nur im Durchschnittstempo der Strecke, sodass Rasen dort nichts bringt.
+- Stadtstücke mit vielen Kreuzungen, Ampeln oder Fußgängerzonen werden **neutral**: kein Abschnitts-Duell, keine Krone, keine Punkte. Auf einer ganzen Strecke läuft die Zeit dort weiter, aber nur im Durchschnittstempo der Strecke, sodass Rasen dort nichts bringt.
+- Chaser können Abschnitte als **gefährlich melden**; nach wenigen Meldungen werden sie vorläufig neutral.
+- Ein kurzer **Sicherheitshinweis** im Onboarding und Nutzungsbedingungen mit Haftungshinweis, vor R3 rechtlich geprüft.
+- Die faire Auto-Pause hilft hier sogar: Wer an der roten Ampel hält, verliert keine Zeit, es gibt also keinen Grund, durchzufahren.
 
 ## 4. Ränge
 
