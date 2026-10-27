@@ -26,6 +26,8 @@ export interface AccountsOptions {
   now?: () => number;
   /** Für Tests austauschbar */
   fetch?: typeof fetch;
+  /** E-Mail-Adressen mit Zugang zum Adminbereich */
+  adminEmails?: readonly string[];
 }
 
 const SESSION_COOKIE = 'rechase_session';
@@ -66,9 +68,20 @@ export interface PublicUser {
   testConsent: boolean;
   /** Hochgeladene Fahrten */
   uploadedRides: number;
+  /** Darf den Adminbereich unter /admin öffnen */
+  admin: boolean;
 }
 
-export function createAccounts({ store, google, publicUrl, now = Date.now, fetch: customFetch }: AccountsOptions) {
+export function createAccounts({
+  store,
+  google,
+  publicUrl,
+  now = Date.now,
+  fetch: customFetch,
+  adminEmails = [],
+}: AccountsOptions) {
+  const admins = new Set(adminEmails.map((e) => e.trim().toLowerCase()).filter(Boolean));
+  const isAdmin = (u: User) => !!u.email && admins.has(u.email.toLowerCase());
   const tries = new Map<string, { count: number; since: number }>();
 
   function limit(req: IncomingMessage) {
@@ -91,6 +104,7 @@ export function createAccounts({ store, google, publicUrl, now = Date.now, fetch
     providers: store.providers(u.id),
     testConsent: u.testConsentAt != null,
     uploadedRides: store.countRides(u.id),
+    admin: isAdmin(u),
   });
 
   function startSession(req: IncomingMessage, userId: string) {
@@ -342,5 +356,5 @@ export function createAccounts({ store, google, publicUrl, now = Date.now, fetch
     return true;
   }
 
-  return { handle, currentUser, requireUser };
+  return { handle, currentUser, requireUser, isAdmin };
 }

@@ -13,6 +13,8 @@ export interface AccountUser {
   testConsent: boolean;
   /** Schon hochgeladene Fahrten */
   uploadedRides: number;
+  /** Darf den Adminbereich unter /admin öffnen */
+  admin: boolean;
 }
 
 const USER_KEY = 'rechase.account';

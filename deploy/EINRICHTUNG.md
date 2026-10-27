@@ -117,3 +117,14 @@ cd /opt/rechase && sudo -u rechase docker compose up -d app
 ```
 
 Im Log steht danach „Google-Anmeldung aktiv“, und in der App erscheint der Google-Knopf.
+
+## 8. Adminbereich für den Feldtest
+
+Unter `https://rechase.konnerths.de/admin` gibt es Dashboard, Testerliste und jede hochgeladene Fahrt auf der Karte. Zugang hat, wer mit einem Konto angemeldet ist, dessen E-Mail in `ADMIN_EMAILS` steht (mehrere kommagetrennt). Das Konto muss es schon geben; E-Mail-Adressen von Passwort-Konten werden nicht bestätigt, deshalb nur Adressen eintragen, deren Konto dir gehört. `<MAIL>` ersetzen:
+
+```bash
+echo 'ADMIN_EMAILS=<MAIL>' | sudo -u rechase tee -a /opt/rechase/.env >/dev/null
+cd /opt/rechase && sudo -u rechase docker compose up -d app
+```
+
+Im Log steht danach „1 Admin“.

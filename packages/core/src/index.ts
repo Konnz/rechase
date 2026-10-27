@@ -10,3 +10,4 @@ export * from './cues.ts';
 export * from './bikes.ts';
 export * from './plausibility.ts';
 export * from './upload.ts';
+export * from './fieldtest.ts';
