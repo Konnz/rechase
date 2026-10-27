@@ -26,8 +26,8 @@ Details zu Community, Gamification, Radklassen, Anti-Cheat und Strava: [05-commu
 | 7 | Eigenen Ghost wählen: letzte Fahrt, Durchschnitt, Bestzeit | R1 | E4 |
 | 8 | Neues Layout der Fahransicht, Tippen auf Karte tauscht die Ansicht | R1 | E4, E5 |
 | 9 | Registrierung und Login per Google, Apple und manuell | R2 | E12 |
-| 11 | Teilstrecken fair werten: fliegender Start, Vorbelastung, Abschnitte für alle, Strecken nur komplett | R1 (Vorbelastung mitschreiben), R2 (Abschnitts-Duelle), R3 (Kronen, Eroberung) | E23, E19 |
 | 10 | Adminbereich mit Datendashboard, in der Testphase mit den Strecken der Tester (27.10. abends) | Feldtest, ausgebaut in R2 | E22 |
+| 11 | Teilstrecken fair werten: fliegender Start, Vorbelastung, Abschnitte für alle, Strecken nur komplett | R1 (Vorbelastung mitschreiben), R2 (Abschnitts-Duelle), R3 (Kronen, Eroberung) | E23, E19 |
 
 Prioritäten: **M** = Must (ohne geht der Release nicht), **S** = Should, **C** = Could.
 Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
