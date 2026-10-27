@@ -48,7 +48,7 @@ Eine Referenzfahrt auf einer Strecke, abgebildet als Funktion **Streckendistanz 
 Weil der Ghost über die Bewegungszeit läuft, „hält er automatisch mit an“, wenn ich an der Ampel stehe.
 
 ### 4.4 Faire Auto-Pause
-- Pause, wenn Geschwindigkeit < ~3 km/h für ≥ 3 s; Weiterfahrt bei > ~5 km/h (Hysterese gegen Flattern).
+- Pause sofort, wenn die Geschwindigkeit unter ~1,5 km/h fällt (Stillstand), oder nach 2 s unter ~4 km/h (Kriechen); Weiterfahrt ab ~6 km/h (Hysterese gegen Flattern).
 - GPS-Drift im Stand (Sprünge von 5–20 m) darf keine Bewegung erzeugen → Positionssprünge mit schlechter Genauigkeit verwerfen.
 - Pausen werden in der Fahrt gespeichert, damit Ghost-Vergleich und Statistiken dieselbe Logik nutzen.
 - Anzeige: „Auto-Pause aktiv · Ampelstopps zählen nicht“ (siehe Mockup).
