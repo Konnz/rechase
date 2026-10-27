@@ -2,11 +2,13 @@ import { distanceM } from './geo.ts';
 import type { MotionSample, TrackPoint } from './types.ts';
 
 export interface MotionOptions {
-  /** Unter dieser Geschwindigkeit (m/s) beginnt die Pause, Standard 3 km/h */
+  /** Unter dieser Geschwindigkeit (m/s) gilt man als stehend und pausiert sofort, Standard 1,5 km/h */
+  standSpeed: number;
+  /** Unter dieser Geschwindigkeit (m/s) beginnt die Pause nach stopAfterMs, Standard 4 km/h */
   stopSpeed: number;
-  /** Ab dieser Geschwindigkeit (m/s) geht es weiter, Standard 5 km/h */
+  /** Ab dieser Geschwindigkeit (m/s) geht es weiter, Standard 6 km/h */
   resumeSpeed: number;
-  /** So lange (ms) muss man langsam sein, bevor pausiert wird */
+  /** So lange (ms) muss man langsamer als stopSpeed sein, bevor pausiert wird */
   stopAfterMs: number;
   /** Punkte mit schlechterer Genauigkeit (m) werden verworfen */
   maxAccuracyM: number;
@@ -15,9 +17,10 @@ export interface MotionOptions {
 }
 
 export const defaultMotionOptions: MotionOptions = {
-  stopSpeed: 3 / 3.6,
-  resumeSpeed: 5 / 3.6,
-  stopAfterMs: 3000,
+  standSpeed: 1.5 / 3.6,
+  stopSpeed: 4 / 3.6,
+  resumeSpeed: 6 / 3.6,
+  stopAfterMs: 2000,
   maxAccuracyM: 30,
   gapMs: 10_000,
 };
@@ -64,7 +67,12 @@ export class MotionTracker {
 
     let moving = prev.moving;
     if (moving) {
-      if (speed < o.stopSpeed) {
+      // Die Doppler-Geschwindigkeit fällt beim Anhalten schnell auf fast 0: dann sofort pausieren.
+      // Kriechen knapp über Schritttempo pausiert erst nach stopAfterMs, damit langsames Fahren nicht stoppt.
+      if (speed < o.standSpeed) {
+        moving = false;
+        this.slowSince = null;
+      } else if (speed < o.stopSpeed) {
         this.slowSince ??= prev.t;
         if (p.t - this.slowSince >= o.stopAfterMs) moving = false;
       } else {
