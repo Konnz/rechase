@@ -6,12 +6,15 @@
   let {
     rec,
     onclose,
+    position,
     title = 'Aktuelle Fahrt',
     route = [],
     ghost = null,
   }: {
     rec: RideRecorder;
     onclose: () => void;
+    /** Was die Karte als eigene Position zeigt; ohne Angabe die aktuelle Aufnahme */
+    position?: LatLon | null;
     title?: string;
     route?: readonly LatLon[];
     ghost?: LatLon | null;
@@ -35,7 +38,7 @@
   </header>
 
   <div class="mapbox">
-    <LiveMap position={cur} track={rec.track} {route} {ghost} bind:following />
+    <LiveMap position={position ?? cur} track={rec.track} {route} {ghost} bind:following />
 
     <div class="chip">
       <span class="label">Strecke</span>
