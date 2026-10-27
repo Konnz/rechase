@@ -2,6 +2,7 @@
   import { bikeInfo, CHASER_NAME, normalizeChaserName } from '@rechase/core';
   import { account } from './account.svelte.ts';
   import BikePicker from './BikePicker.svelte';
+  import FieldTest from './FieldTest.svelte';
   import './forms.css';
 
   let { onclose }: { onclose: () => void } = $props();
@@ -84,6 +85,8 @@
     {:else if saved}
       <p role="status">{saved}</p>
     {/if}
+
+    <FieldTest />
 
     <h2>Konto</h2>
     <button class="secondary" disabled={busy} onclick={logout}>Abmelden</button>

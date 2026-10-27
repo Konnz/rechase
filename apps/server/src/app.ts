@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createAccounts, type GoogleConfig } from './accounts.ts';
 import { createPinGate } from './pin.ts';
+import { createRides } from './rides.ts';
 import type { Store } from './store.ts';
 
 const TYPES: Record<string, string> = {
@@ -42,6 +43,7 @@ export function createApp({ publicDir, version, pin, store, google, publicUrl }:
   const root = resolve(publicDir);
   const gate = pin ? createPinGate(pin) : null;
   const accounts = store ? createAccounts({ store, google, publicUrl }) : null;
+  const rides = store && accounts ? createRides({ store, accounts }) : null;
 
   async function sendFile(res: ServerResponse, path: string, cache: string) {
     const info = await stat(path).catch(() => null);
@@ -68,6 +70,7 @@ export function createApp({ publicDir, version, pin, store, google, publicUrl }:
     if (gate && (await gate.handle(req, res, url))) return;
 
     if (accounts && (await accounts.handle(req, res, url))) return;
+    if (rides && (await rides.handle(req, res, url))) return;
     if (url.pathname.startsWith('/api/')) {
       res.writeHead(404, { 'Content-Type': 'application/json' }).end('{"error":"Keine API"}');
       return;

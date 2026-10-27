@@ -178,8 +178,8 @@ Damit der Feldtest mit 5–10 Fahrern etwas bringt, müssen ihre Fahrten beim Te
 ### Epic E22: Adminbereich und Datendashboard
 | ID | Story | Prio | Größe |
 |---|---|---|---|
-| E22-1 | Als Tester will ich ausdrücklich einwilligen, dass meine Fahrten für die Testphase hochgeladen und vom Team angesehen werden; die Einwilligung kann ich jederzeit zurückziehen. | M | S |
-| E22-2 | Als Tester will ich, dass beendete Fahrten automatisch hochgeladen werden (bei schlechtem Netz später nachgeholt), samt Rohpunkten, Auto-Pausen, Lücken, Gerät und Browser. | M | M |
+| E22-1 | ✅ Als Tester will ich ausdrücklich einwilligen, dass meine Fahrten für die Testphase hochgeladen und vom Team angesehen werden; die Einwilligung kann ich jederzeit zurückziehen. | M | S |
+| E22-2 | ✅ (gzip-JSON in SQLite; ohne Netz geht die Fahrt beim nächsten Öffnen oder Online-Werden hoch) Als Tester will ich, dass beendete Fahrten automatisch hochgeladen werden (bei schlechtem Netz später nachgeholt), samt Rohpunkten, Auto-Pausen, Lücken, Gerät und Browser. | M | M |
 | E22-3 | Als Admin will ich mich mit meinem normalen Konto anmelden und über eine **Admin-Rolle** (per Env-Variable `ADMIN_EMAILS` vergeben) einen geschützten Bereich unter `/admin` öffnen. | M | S |
 | E22-4 | Als Admin will ich eine **Liste der Tester** sehen (Name, Rad, Gerät, Anzahl Fahrten, letzte Fahrt) und je Tester seine Fahrten. | M | M |
 | E22-5 | Als Admin will ich eine **Fahrt auf der Karte** sehen: Spur, Pausen, GPS-Lücken, verworfene Punkte, Tempo- und Genauigkeitsverlauf, Ergebnis gegen den Ghost. | M | L |

@@ -1,4 +1,4 @@
-import type { BikeType, LatLon, MotionSample, TrackPoint } from '@rechase/core';
+import type { BatteryRecord, BikeType, DeviceInfo, DuelRecord, LatLon, MotionSample, TrackPoint } from '@rechase/core';
 
 /** Eine aufgezeichnete Fahrt, wie sie lokal in IndexedDB liegt. */
 export interface StoredRide {
@@ -24,6 +24,14 @@ export interface StoredRide {
    * Öffentliche Ghosts prüft später der Server.
    */
   appealedAt?: number;
+  /** Wie oft die App während der Fahrt verlassen oder der Bildschirm gesperrt wurde */
+  hidden?: number;
+  /** Gerätemodell und System, soweit der Browser sie verrät */
+  device?: DeviceInfo;
+  /** Ausgang des Duells, wenn gegen einen Ghost gefahren wurde */
+  duel?: DuelRecord;
+  /** Akkustand zu Beginn und Ende, wo messbar */
+  battery?: BatteryRecord;
 }
 
 /** Eine gemerkte Strecke mit ihrer Bestzeit. Der Ghost wird bei Bedarf aus der Bestzeit-Fahrt berechnet. */
@@ -44,17 +52,25 @@ export interface StoredRoute {
 }
 
 const DB_NAME = 'rechase';
-type StoreName = 'rides' | 'routes';
+type StoreName = 'rides' | 'routes' | 'uploads';
+
+/** Stand einer Fahrt auf dem Server (Feldtest): welcher Fingerabdruck zuletzt hochgeladen wurde */
+export interface UploadMark {
+  id: string;
+  fingerprint: string;
+  at: number;
+}
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 function open(): Promise<IDBDatabase> {
   dbPromise ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 2);
+    const req = indexedDB.open(DB_NAME, 3);
     req.onupgradeneeded = (e) => {
       const db = req.result;
       if (e.oldVersion < 1) db.createObjectStore('rides', { keyPath: 'id' });
       if (e.oldVersion < 2) db.createObjectStore('routes', { keyPath: 'id' });
+      if (e.oldVersion < 3) db.createObjectStore('uploads', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -85,6 +101,10 @@ export const saveRoute = (route: StoredRoute) => run('routes', 'readwrite', (s) 
 export const deleteRoute = (id: string) => run('routes', 'readwrite', (s) => s.delete(id));
 export const listRoutes = async () =>
   (await run<StoredRoute[]>('routes', 'readonly', (s) => s.getAll())).sort((a, b) => a.name.localeCompare(b.name));
+
+export const saveUploadMark = (mark: UploadMark) => run('uploads', 'readwrite', (s) => s.put(mark));
+export const listUploadMarks = () => run<UploadMark[]>('uploads', 'readonly', (s) => s.getAll());
+export const clearUploadMarks = () => run('uploads', 'readwrite', (s) => s.clear());
 
 /** Bittet den Browser, die Daten nicht automatisch zu löschen (wichtig auf iOS). */
 export async function requestPersistence(): Promise<boolean> {

@@ -1,4 +1,5 @@
 import { isBikeType, type BikeType } from '@rechase/core';
+import { api } from '../api.ts';
 
 /** Konto, wie es die API unter /api/me liefert */
 export interface AccountUser {
@@ -8,6 +9,10 @@ export interface AccountUser {
   bike: BikeType | null;
   onboarded: boolean;
   providers: ('password' | 'google' | 'apple')[];
+  /** Hat in den Feldtest eingewilligt: beendete Fahrten werden hochgeladen */
+  testConsent: boolean;
+  /** Schon hochgeladene Fahrten */
+  uploadedRides: number;
 }
 
 const USER_KEY = 'rechase.account';
@@ -30,23 +35,6 @@ function write(key: string, value: unknown) {
   } catch {
     // Privater Modus: gilt bis zum Neuladen
   }
-}
-
-async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(path, {
-      method,
-      credentials: 'same-origin',
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  } catch {
-    throw new Error('Keine Verbindung. Bitte später noch einmal versuchen.');
-  }
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? `Fehler ${res.status}`);
-  return data;
 }
 
 /**
@@ -96,7 +84,7 @@ class Account {
     location.href = '/api/auth/google';
   }
 
-  async update(profile: { name?: string; bike?: BikeType }) {
+  async update(profile: { name?: string; bike?: BikeType; testConsent?: boolean }) {
     this.set((await api<{ user: AccountUser }>('PATCH', '/api/me', profile)).user);
   }
 
