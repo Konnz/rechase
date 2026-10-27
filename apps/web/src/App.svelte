@@ -18,6 +18,7 @@
   import { createRoute, evaluateRide, loadGhost, type RideResult } from './lib/routes.ts';
   import { replaySource } from './lib/sim.ts';
   import { PositionPreview } from './lib/preview.svelte.ts';
+  import Summary from './lib/summary/Summary.svelte';
   import { RideRecorder } from './lib/tracker.svelte.ts';
 
   const rec = new RideRecorder();
@@ -28,6 +29,8 @@
   /** Ergebnis der letzten Fahrt auf einer Strecke */
   let result = $state.raw<RideResult | { route: StoredRoute; incomplete: true } | null>(null);
   let notice = $state<string | null>(null);
+  /** Abschluss-Screen einer Fahrt, direkt nach dem Beenden oder aus der Liste */
+  let summary = $state.raw<{ ride: StoredRide; simulated: boolean; result: typeof result } | null>(null);
 
   const active = $derived(rec.status === 'starting' || rec.status === 'recording');
   const cur = $derived(rec.current);
@@ -63,6 +66,7 @@
       result = { route: d.stored, time: d.time, previousBest: d.stored.bestTime, newBest: false };
     }
     await refresh();
+    if (ride?.samples.length) summary = { ride, simulated: rec.simulated, result };
   }
 
   async function toggle() {
@@ -96,11 +100,12 @@
     await rec.start(opts);
   }
 
-  async function remember(r: StoredRide) {
+  async function remember(r: StoredRide): Promise<StoredRoute | null> {
     const name = prompt('Wie soll die Strecke heißen?', 'Hausrunde')?.trim();
-    if (!name) return;
-    await createRoute(r, name);
+    if (!name) return null;
+    const route = await createRoute(r, name);
     await refresh();
+    return route;
   }
 
   async function remove(id: string) {
@@ -126,7 +131,18 @@
   onMount(refresh);
 </script>
 
-{#if showMap}
+{#if summary}
+  {@const s = summary}
+  <Summary
+    ride={s.ride}
+    route={(s.ride.routeId && routeById.get(s.ride.routeId)) ||
+      (s.result && !('incomplete' in s.result) ? s.result.route : null)}
+    result={s.result}
+    simulated={s.simulated}
+    onsave={remember}
+    onclose={() => (summary = null)}
+  />
+{:else if showMap}
   <MapView
     {rec}
     onclose={() => (showMap = false)}
@@ -288,7 +304,9 @@
           {@const last = r.samples.at(-1)}
           <li>
             <div>
-              <span class="when">{fmtDate(r.startedAt)}{r.endedAt ? '' : ' · unvollständig'}</span>
+              <button class="when open" onclick={() => (summary = { ride: r, simulated: false, result: null })}>
+                {fmtDate(r.startedAt)}{r.endedAt ? '' : ' · unvollständig'}
+              </button>
               <span class="what">
                 {fmtKm(last?.distance ?? 0)} km · {fmtDuration(last?.movingTime ?? 0)} bewegt · {r.gaps} Lücken
               </span>
@@ -586,6 +604,18 @@
   }
   .when {
     font-weight: 600;
+  }
+  .open {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+  }
+  .open::after {
+    content: ' ›';
+    color: var(--muted);
   }
   .what {
     font-size: 13px;
