@@ -29,10 +29,28 @@ Zusätzliche Idee: **Ultimativer Ghost**, zusammengesetzt aus deinen besten Absc
 ## 3. Strecken und Gebiete erobern
 
 ### Strecken
-- Jede öffentliche Strecke hat genau **einen Besitzer**: den Chaser mit der schnellsten gültigen Bewegungszeit in seiner Radklasse (siehe 6).
+- Jede öffentliche Strecke hat genau **einen Besitzer**: den Chaser mit der schnellsten gültigen Bewegungszeit in seiner Radklasse (siehe 6). Dafür muss die Strecke **komplett** gefahren werden; Teilstücke zählen als Abschnitte (siehe unten).
 - Wer die Zeit schlägt, **erobert** die Strecke. Der bisherige Besitzer bekommt eine Benachrichtigung („Deine Hausrunde Isar wurde erobert, hol sie dir zurück!“) mit dem Ghost des Eroberers.
 - **Herausfordern:** Du kannst einem Besitzer eine Challenge schicken („Re: Hausrunde Isar“). Er hat zum Beispiel 7 Tage Zeit, zu verteidigen.
 - **Verteidigen statt horten:** Fährt der Besitzer seine Strecke 6 Wochen nicht, wird sie „offen“. Die Zeit bleibt stehen, aber jeder, der unter 105 % davon bleibt, übernimmt sie. So bleiben Strecken lebendig.
+
+### Teilstrecken fair werten (Abschnitte)
+
+**Problem:** Eine ganze Strecke von Start bis Ziel zu fahren ist selten, außer auf der eigenen Hausrunde. Häufiger fährt man nur ein Stück einer fremden Strecke mit. Wer aber nach 50 km in den Beinen auf dem letzten Kilometer von jemandem mit frischen Beinen geschlagen wird, verliert unfair.
+
+**Lösung in vier Teilen:**
+
+1. **Virtuelle Start- und Ziellinien mit fliegendem Start.** Abschnitte haben feste Linien quer zur Straße. Die Zeit läuft, sobald man die Startlinie überfährt, und stoppt an der Ziellinie, ganz automatisch. Niemand muss an einem Punkt anhalten oder einen Knopf drücken. Man kann also mitten in einer langen Runde durch einen Abschnitt fahren, und er wird gewertet. Die Auto-Pause gilt auch hier, Ampeln innerhalb des Abschnitts zählen also nicht.
+2. **Vorbelastung mitspeichern und zeigen.** Zu jeder Abschnittszeit speichern wir, wie viele Kilometer und Höhenmeter der Fahrer an diesem Tag vorher schon gefahren war. Ghosts zeigen das an, zum Beispiel „Anna · nach 49 km, 620 hm“. Es gibt drei **Wertungsklassen**:
+   - **Frisch:** weniger als 10 km davor
+   - **Mittel:** 10 bis 40 km davor
+   - **Ausdauer:** mehr als 40 km davor
+
+   Standardmäßig bekommst du nur Ghosts mit ähnlicher Vorbelastung als Gegner und als Bestenliste. Alle anderen kann man trotzdem wählen. Optional und erst nach Tests mit echten Daten: ein kleiner Zeitbonus je Vor-Kilometer (z. B. 0,1 % je 10 km, höchstens 3 %).
+3. **Abschnitte für alle, Strecken nur komplett.** Abschnittszeiten kann jeder holen, mitten in jeder Fahrt. Dafür gibt es Punkte und **Abschnitts-Kronen** (schnellste Zeit je Abschnitt, Radklasse und Wertungsklasse). Eine **Strecke erobern** kann dagegen nur, wer sie komplett von Start bis Ziel fährt. Damit bleibt das Revier denen, die sich die ganze Runde vornehmen.
+4. **Abschnitte sind 1 bis 10 km lang.** Kürzer als 1 km macht GPS-Ungenauigkeit (ein paar Meter an den Linien) einen zu großen Anteil aus, länger als 10 km fährt man selten zufällig komplett mit. Lange Strecken werden in mehrere Abschnitte geteilt, an natürlichen Grenzen wie Kreuzungen, Anstiegen und Kurven.
+
+Mit der späteren automatischen Streckenerkennung (E13) entstehen Abschnitte von selbst dort, wo viele Chaser fahren.
 
 ### Gebiete
 - Gebiete sind Kacheln auf der Karte (z. B. Hexagone mit ca. 1 km Durchmesser, H3-Raster) oder Stadtteile.

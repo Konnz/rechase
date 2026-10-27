@@ -26,6 +26,7 @@ Details zu Community, Gamification, Radklassen, Anti-Cheat und Strava: [05-commu
 | 7 | Eigenen Ghost wählen: letzte Fahrt, Durchschnitt, Bestzeit | R1 | E4 |
 | 8 | Neues Layout der Fahransicht, Tippen auf Karte tauscht die Ansicht | R1 | E4, E5 |
 | 9 | Registrierung und Login per Google, Apple und manuell | R2 | E12 |
+| 11 | Teilstrecken fair werten: fliegender Start, Vorbelastung, Abschnitte für alle, Strecken nur komplett | R1 (Vorbelastung mitschreiben), R2 (Abschnitts-Duelle), R3 (Kronen, Eroberung) | E23, E19 |
 | 10 | Adminbereich mit Datendashboard, in der Testphase mit den Strecken der Tester (27.10. abends) | Feldtest, ausgebaut in R2 | E22 |
 
 Prioritäten: **M** = Must (ohne geht der Release nicht), **S** = Should, **C** = Could.
@@ -220,6 +221,18 @@ Damit der Feldtest mit 5–10 Fahrern etwas bringt, müssen ihre Fahrten beim Te
 | E18-3 | Als Fahrer will ich mein Strava-Konto verbinden und Fahrten automatisch zu Strava hochladen, mit Ergebnis und Challenge-Link in der Beschreibung. | S | M |
 | E18-4 | Als Fahrer will ich eigene Strava-Fahrten importieren und als **private** Ghosts nutzen (Strava erlaubt nicht, sie anderen zu zeigen). | C | M |
 
+### Epic E23: Faire Abschnitts-Duelle (Teilstrecken)
+Hintergrund und Regeln: [Teilstrecken fair werten](05-community-und-gamification.md#teilstrecken-fair-werten-abschnitte).
+
+| ID | Story | Prio | Größe |
+|---|---|---|---|
+| E23-1 | Als Chaser will ich, dass Abschnitte **virtuelle Start- und Ziellinien** haben und die Zeit beim Überfahren automatisch startet und stoppt (fliegender Start, Auto-Pause gilt weiter), auch mitten in einer längeren Fahrt. | M | L |
+| E23-2 | Als Chaser will ich, dass zu jeder Abschnittszeit die **Vorbelastung** gespeichert wird (Kilometer und Höhenmeter vorher an diesem Tag). Ab R1 schon mitschreiben, damit alte Fahrten später passen. | M | S |
+| E23-3 | Als Chaser will ich bei fremden Ghosts die Vorbelastung sehen, z. B. „Anna · nach 49 km, 620 hm“. | M | S |
+| E23-4 | Als Chaser will ich standardmäßig nur Ghosts und Bestenlisten mit ähnlicher Vorbelastung sehen (Wertungsklassen frisch unter 10 km, mittel 10–40 km, Ausdauer über 40 km), alle anderen aber wählen können. | M | M |
+| E23-5 | Als Plattform will ich Abschnitte auf 1–10 km begrenzen und lange Strecken an natürlichen Grenzen teilen. | M | M |
+| E23-6 | Optional: kleiner Zeitbonus je Vor-Kilometer (z. B. 0,1 % je 10 km, höchstens 3 %), erst nach Auswertung echter Daten aus dem Feldtest. | C | S |
+
 ### Epic E21: Anti-Cheat
 | ID | Story | Prio | Größe |
 |---|---|---|---|
@@ -235,7 +248,8 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 ### Epic E19: Strecken und Gebiete erobern
 | ID | Story | Prio | Größe |
 |---|---|---|---|
-| E19-1 | Als Chaser will ich eine öffentliche Strecke **erobern**, indem ich die schnellste gültige Bewegungszeit meiner Radklasse fahre. | M | L |
+| E19-1 | Als Chaser will ich eine öffentliche Strecke **erobern**, indem ich sie **komplett** von Start bis Ziel in der schnellsten gültigen Bewegungszeit meiner Radklasse fahre. Teilstücke zählen nur als Abschnitte (E23). | M | L |
+| E19-7 | Als Chaser will ich auf jedem Abschnitt **Abschnitts-Kronen** holen (schnellste Zeit je Abschnitt, Radklasse und Wertungsklasse) und dafür Punkte bekommen, auch wenn ich nur ein Stück der Strecke fahre. | M | M |
 | E19-2 | Als Besitzer will ich benachrichtigt werden, wenn meine Strecke erobert wurde, und den Ghost des Eroberers direkt jagen können. | M | M |
 | E19-3 | Als Chaser will ich einen Besitzer gezielt **herausfordern**; er hat 7 Tage zum Verteidigen. | S | M |
 | E19-4 | Als Chaser will ich auf der Karte **Gebiete** (Hexagone) in der Farbe ihres Besitzers sehen; ein Gebiet gehört dem, der dort die meisten Strecken hält. | S | L |
@@ -265,7 +279,7 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 ### Epic E13: Automatische Streckenerkennung
 - Oft gefahrene Strecken und Teilstücke automatisch erkennen (Clustering überlappender Fahrten).
 - Während der Fahrt erkennen, dass man auf ein bekanntes Teilstück einbiegt, und automatisch ein Duell anbieten (Ton + Einblendung).
-- Teilstück-Bestzeiten, ohne dass Segmente manuell angelegt werden.
+- Teilstück-Bestzeiten, ohne dass Segmente manuell angelegt werden; dieselben virtuellen Linien und Regeln wie in E23.
 
 ### Epic E14: Native App (Capacitor-Wrapper der PWA)
 - Tracking mit gesperrtem Bildschirm und im Hintergrund.
@@ -290,6 +304,7 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 3. **Sprint 2:** E3, E4-1 bis E4-3, Q-2 → Duell-Logik läuft im Simulator.
 4. **Sprint 3:** E4-4 bis E4-7, E5-1/E5-2, E6-1, E8-1 → erste echte Duellfahrt.
 5. **Sprint 4:** Rest der Must/Should aus R1 (inkl. E4-10, E4-11, E16).
+   E23-2 (Vorbelastung mitschreiben) läuft schon hier mit, weil es klein ist und spätere Wertungsklassen auf alte Fahrten angewiesen sind.
 6. **Feldtest:** E22-1 bis E22-6 vor dem Start, dann 2–3 Wochen mit 5–10 Fahrern; E22-7 bis E22-9 nach Bedarf.
-7. **R2:** zuerst E12 (Konto, Onboarding, Radklasse) und E21-1/E21-2 (Plausibilität), weil fremde Ghosts erst mit beidem fair sind. Dann E11, E17, E18.
+7. **R2:** zuerst E12 (Konto, Onboarding, Radklasse) und E21-1/E21-2 (Plausibilität), weil fremde Ghosts erst mit beidem fair sind. Dann E11, E17, E23 (Abschnitts-Duelle mit fremden Ghosts), E18.
 8. **R3:** E19 und E20 zusammen, dazu E21-3 bis E21-5.
