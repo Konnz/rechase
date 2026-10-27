@@ -1,5 +1,6 @@
 import { MotionTracker, type BikeType, type Cue, type Geoid, type MotionSample, type TrackPoint } from '@rechase/core';
 import { altitudeIsEllipsoidal, loadGeoid } from './altitude.ts';
+import { battery, deviceInfo } from './device.ts';
 import { saveRide, type StoredRide } from './db.ts';
 import type { Duel } from './duel.svelte.ts';
 import type { LatLon } from './map/LiveMap.svelte';
@@ -101,6 +102,9 @@ export class RideRecorder {
       ...(bike ? { bike } : {}),
     };
 
+    // Für den Feldtest: Gerät und Akku, ohne den Start aufzuhalten
+    if (!source) void this.recordDevice(this.ride);
+
     await this.acquireWakeLock();
     document.addEventListener('visibilitychange', this.onVisibility);
 
@@ -118,6 +122,15 @@ export class RideRecorder {
     this.ride = null;
     if (ride) {
       ride.endedAt = Date.now();
+      ride.hidden = this.hiddenCount;
+      const d = this.duel;
+      if (d) {
+        ride.duel = { opponent: d.opponent.short, opponentTime: d.opponent.time, time: d.phase === 'finished' ? d.time : null };
+      }
+      if (ride.battery) {
+        const b = await battery();
+        ride.battery = { ...ride.battery, end: b?.level ?? null, charging: ride.battery.charging || !!b?.charging };
+      }
       await this.persist(ride);
     }
     this.status = 'stopped';
@@ -177,6 +190,12 @@ export class RideRecorder {
     // Der Wake Lock fällt beim Verlassen der Seite weg und muss neu angefordert werden.
     else void this.acquireWakeLock();
   };
+
+  private async recordDevice(ride: StoredRide) {
+    const [device, b] = await Promise.all([deviceInfo(), battery()]);
+    if (device) ride.device = device;
+    if (b) ride.battery = { start: b.level, end: null, charging: b.charging };
+  }
 
   private async acquireWakeLock() {
     if (!('wakeLock' in navigator)) {

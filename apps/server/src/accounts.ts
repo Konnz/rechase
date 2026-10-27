@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { isBikeType, normalizeChaserName, type BikeType } from '@rechase/core';
+import { checkOrigin, cookies, HttpError, readJson, sendJson, str } from './http.ts';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password.ts';
 import type { Provider, Store, User } from './store.ts';
 
@@ -31,7 +32,6 @@ const SESSION_COOKIE = 'rechase_session';
 const OAUTH_COOKIE = 'rechase_oauth';
 const SESSION_DAYS = 180;
 const DAY_MS = 24 * 3600 * 1000;
-const MAX_BODY = 16 * 1024;
 const PASSWORD = { min: 8, max: 200 };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,25 +39,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_TRIES = 20;
 const TRY_WINDOW_MS = 15 * 60 * 1000;
 
-class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 const sha256 = (s: string) => createHash('sha256').update(s).digest('base64url');
-
-function cookies(req: IncomingMessage) {
-  const out = new Map<string, string>();
-  for (const part of (req.headers.cookie ?? '').split(';')) {
-    const i = part.indexOf('=');
-    if (i > 0) out.set(part.slice(0, i).trim(), part.slice(i + 1).trim());
-  }
-  return out;
-}
 
 const isHttps = (req: IncomingMessage) => req.headers['x-forwarded-proto'] === 'https';
 
@@ -65,52 +47,13 @@ function cookie(req: IncomingMessage, name: string, value: string, maxAgeS: numb
   return `${name}=${value}; Path=${path}; Max-Age=${maxAgeS}; HttpOnly; SameSite=Lax${isHttps(req) ? '; Secure' : ''}`;
 }
 
-function sendJson(res: ServerResponse, status: number, body: unknown, headers: Record<string, string | string[]> = {}) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
-  res.end(JSON.stringify(body));
-}
-
 function redirect(res: ServerResponse, location: string, setCookie: string[] = []) {
   res.writeHead(303, { Location: location, 'Cache-Control': 'no-store', 'Set-Cookie': setCookie });
   res.end();
 }
 
-async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
-  if (!(req.headers['content-type'] ?? '').startsWith('application/json')) {
-    throw new HttpError(415, 'Bitte JSON schicken.');
-  }
-  let body = '';
-  for await (const chunk of req) {
-    body += chunk;
-    if (body.length > MAX_BODY) throw new HttpError(413, 'Anfrage zu groß.');
-  }
-  try {
-    const data: unknown = body ? JSON.parse(body) : {};
-    if (data && typeof data === 'object' && !Array.isArray(data)) return data as Record<string, unknown>;
-  } catch {
-    // unten
-  }
-  throw new HttpError(400, 'Ungültiges JSON.');
-}
-
-/** Ändernde Anfragen nur vom eigenen Origin (Browser schicken Origin bei POST, PATCH, DELETE immer mit). */
-function checkOrigin(req: IncomingMessage) {
-  const origin = req.headers.origin;
-  if (!origin) return;
-  const host = req.headers.host;
-  let originHost = '';
-  try {
-    originHost = new URL(origin).host;
-  } catch {
-    // unten
-  }
-  if (originHost !== host) throw new HttpError(403, 'Fremder Origin.');
-}
-
 const clientIp = (req: IncomingMessage) =>
   String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress || '?';
-
-const str = (v: unknown) => (typeof v === 'string' ? v : '');
 
 export interface PublicUser {
   id: string;
@@ -119,6 +62,10 @@ export interface PublicUser {
   bike: BikeType | null;
   onboarded: boolean;
   providers: Provider[];
+  /** Hat in den Feldtest eingewilligt: Fahrten werden hochgeladen */
+  testConsent: boolean;
+  /** Hochgeladene Fahrten */
+  uploadedRides: number;
 }
 
 export function createAccounts({ store, google, publicUrl, now = Date.now, fetch: customFetch }: AccountsOptions) {
@@ -142,6 +89,8 @@ export function createAccounts({ store, google, publicUrl, now = Date.now, fetch
     bike: u.bike,
     onboarded: u.onboardedAt != null,
     providers: store.providers(u.id),
+    testConsent: u.testConsentAt != null,
+    uploadedRides: store.countRides(u.id),
   });
 
   function startSession(req: IncomingMessage, userId: string) {
@@ -248,11 +197,18 @@ export function createAccounts({ store, google, publicUrl, now = Date.now, fetch
       if (!isBikeType(body.bike)) throw new HttpError(400, 'Unbekannter Radtyp.');
       bike = body.bike;
     }
+    if ('testConsent' in body && typeof body.testConsent !== 'boolean') throw new HttpError(400, 'Ungültige Einwilligung.');
     let updated: User;
     try {
       updated = store.updateProfile(user.id, name, bike);
     } catch {
       throw new HttpError(409, `„${name}“ ist schon vergeben.`);
+    }
+    if (body.testConsent === true && updated.testConsentAt == null) updated = store.setTestConsent(user.id, now());
+    if (body.testConsent === false && updated.testConsentAt != null) {
+      // Widerruf: keine weiteren Uploads, und was schon hochgeladen ist, wird gelöscht
+      updated = store.setTestConsent(user.id, null);
+      store.deleteRidesOf(user.id);
     }
     sendJson(res, 200, { user: publicUser(updated) });
   }
@@ -376,7 +332,7 @@ export function createAccounts({ store, google, publicUrl, now = Date.now, fetch
           await deleteMe(req, res);
           break;
         default:
-          throw new HttpError(404, 'Unbekannte API-Adresse.');
+          return false;
       }
     } catch (err) {
       if (!(err instanceof HttpError)) throw err;
@@ -386,5 +342,5 @@ export function createAccounts({ store, google, publicUrl, now = Date.now, fetch
     return true;
   }
 
-  return { handle, currentUser };
+  return { handle, currentUser, requireUser };
 }

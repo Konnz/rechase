@@ -4,6 +4,7 @@
   import { account } from './lib/account/account.svelte.ts';
   import AccountScreen from './lib/account/AccountScreen.svelte';
   import BikePicker from './lib/account/BikePicker.svelte';
+  import FieldTest from './lib/account/FieldTest.svelte';
   import Onboarding from './lib/account/Onboarding.svelte';
   import Profile from './lib/account/Profile.svelte';
   import {
@@ -39,6 +40,7 @@
   import { sounds } from './lib/sound/sounds.ts';
   import Summary from './lib/summary/Summary.svelte';
   import { RideRecorder } from './lib/tracker.svelte.ts';
+  import { uploader } from './lib/upload.svelte.ts';
 
   const rec = new RideRecorder();
   rec.oncue = (c) => sounds.play(c);
@@ -78,6 +80,31 @@
       account.dismissWelcome();
       afterAccount();
     } else if (!account.welcomeSeen && !active) openAccount('welcome');
+    void uploader.sync();
+  }
+
+  const FIELD_TEST_LATER_KEY = 'rechase.fieldTestLater';
+  const loadFieldTestLater = () => {
+    try {
+      return localStorage.getItem(FIELD_TEST_LATER_KEY) === '1';
+    } catch {
+      return false;
+    }
+  };
+  /** Feldtest-Karte auf der Startseite weggeklickt; im Profil bleibt die Einwilligung möglich */
+  let fieldTestLater = $state(loadFieldTestLater());
+  function dismissFieldTest() {
+    fieldTestLater = true;
+    try {
+      localStorage.setItem(FIELD_TEST_LATER_KEY, '1');
+    } catch {
+      // Privater Modus: gilt bis zum Neuladen
+    }
+  }
+
+  /** Feldtest: offene Fahrten hochladen, sobald die App wieder sichtbar oder online ist, aber nicht während der Fahrt */
+  function syncWhenIdle() {
+    if (!active && document.visibilityState === 'visible') void uploader.sync();
   }
 
   const GHOST_MODE_KEY = 'rechase.ghostMode';
@@ -147,6 +174,7 @@
     }
     await refresh();
     if (ride?.samples.length) summary = { ride, simulated: rec.simulated, result, sectionPrs: d?.sectionPrs.length };
+    if (ride && !rec.simulated) void uploader.sync();
   }
 
   async function toggle() {
@@ -207,6 +235,7 @@
     const saved = rides.find((x) => x.id === ride.id) ?? updated;
     if (summary?.ride.id === ride.id) summary = { ...summary, ride: saved, result: r ?? summary.result };
     if (r && result && !('incomplete' in result) && result.route.id === r.route.id) result = r;
+    void uploader.sync();
     return saved;
   }
 
@@ -259,6 +288,12 @@
   onMount(() => {
     void refresh();
     void initAccount();
+    window.addEventListener('online', syncWhenIdle);
+    document.addEventListener('visibilitychange', syncWhenIdle);
+    return () => {
+      window.removeEventListener('online', syncWhenIdle);
+      document.removeEventListener('visibilitychange', syncWhenIdle);
+    };
   });
 </script>
 
@@ -440,6 +475,10 @@
 
   {#if notice}
     <p class="error" role="alert">{notice}</p>
+  {/if}
+
+  {#if account.user?.onboarded && !account.user.testConsent && !fieldTestLater && !active}
+    <FieldTest compact ondismiss={dismissFieldTest} />
   {/if}
 
   {#if routes.length}

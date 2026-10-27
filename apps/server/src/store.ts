@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { BikeType } from '@rechase/core';
+import type { BikeType, RideSummary } from '@rechase/core';
 
 /**
  * Konten und Sitzungen in SQLite (eingebaut in Node, Datei im Volume /data). Kein eigener Datenbank-Container nötig.
@@ -21,6 +21,18 @@ export interface User {
   bike: BikeType | null;
   createdAt: number;
   onboardedAt: number | null;
+  /** Einwilligung in den Feldtest: Fahrten werden hochgeladen und vom Team angesehen */
+  testConsentAt: number | null;
+}
+
+/** Eine hochgeladene Fahrt ohne ihre Punkte */
+export interface RideRow {
+  id: string;
+  userId: string;
+  startedAt: number;
+  endedAt: number | null;
+  uploadedAt: number;
+  summary: RideSummary;
 }
 
 export type Provider = 'password' | 'google' | 'apple';
@@ -64,6 +76,19 @@ const MIGRATIONS = [
      expires_at INTEGER NOT NULL
    );
    CREATE INDEX sessions_user ON sessions(user_id);`,
+  // Feldtest (E22): Einwilligung und hochgeladene Fahrten. summary ist JSON für Listen und Dashboard,
+  // data die ganze Fahrt als gzip-JSON. Fahrten verschwinden mit dem Konto.
+  `ALTER TABLE users ADD COLUMN test_consent_at INTEGER;
+   CREATE TABLE rides (
+     id TEXT PRIMARY KEY,
+     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     started_at INTEGER NOT NULL,
+     ended_at INTEGER,
+     uploaded_at INTEGER NOT NULL,
+     summary TEXT NOT NULL,
+     data BLOB NOT NULL
+   );
+   CREATE INDEX rides_user ON rides(user_id, started_at);`,
 ];
 
 interface UserRow {
@@ -73,6 +98,7 @@ interface UserRow {
   bike: string | null;
   created_at: number;
   onboarded_at: number | null;
+  test_consent_at: number | null;
 }
 
 const toUser = (r: UserRow): User => ({
@@ -82,6 +108,7 @@ const toUser = (r: UserRow): User => ({
   bike: r.bike as BikeType | null,
   createdAt: r.created_at,
   onboardedAt: r.onboarded_at,
+  testConsentAt: r.test_consent_at,
 });
 
 export type Store = ReturnType<typeof openStore>;
@@ -126,6 +153,15 @@ export function openStore(path: string, now: () => number = Date.now) {
     extendSession: db.prepare('UPDATE sessions SET expires_at = ? WHERE token_hash = ?'),
     deleteSession: db.prepare('DELETE FROM sessions WHERE token_hash = ?'),
     purgeSessions: db.prepare('DELETE FROM sessions WHERE expires_at < ?'),
+    setConsent: db.prepare('UPDATE users SET test_consent_at = ? WHERE id = ?'),
+    rideOwner: db.prepare('SELECT user_id FROM rides WHERE id = ?'),
+    putRide: db.prepare(
+      `INSERT INTO rides (id, user_id, started_at, ended_at, uploaded_at, summary, data) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (id) DO UPDATE SET started_at = excluded.started_at, ended_at = excluded.ended_at,
+         uploaded_at = excluded.uploaded_at, summary = excluded.summary, data = excluded.data`,
+    ),
+    deleteRidesOf: db.prepare('DELETE FROM rides WHERE user_id = ?'),
+    countRidesOf: db.prepare('SELECT COUNT(*) AS n FROM rides WHERE user_id = ?'),
   };
 
   function transaction<T>(fn: () => T): T {
@@ -190,6 +226,30 @@ export function openStore(path: string, now: () => number = Date.now) {
     /** Löscht das Konto mit allen Anmeldewegen und Sitzungen. */
     deleteUser(userId: string) {
       q.deleteUser.run(userId);
+    },
+
+    /** Einwilligung in den Feldtest setzen (Zeitpunkt) oder zurückziehen (null) */
+    setTestConsent(userId: string, at: number | null): User {
+      q.setConsent.run(at, userId);
+      return this.user(userId)!;
+    },
+
+    /** Konto, dem eine hochgeladene Fahrt gehört, oder null */
+    rideOwner(id: string): string | null {
+      return (q.rideOwner.get(id) as { user_id: string } | undefined)?.user_id ?? null;
+    },
+
+    /** Legt eine Fahrt an oder ersetzt sie (gleiche ID, z. B. nach Korrektur des Rads) */
+    putRide(ride: Omit<RideRow, 'uploadedAt'>, data: Uint8Array) {
+      q.putRide.run(ride.id, ride.userId, ride.startedAt, ride.endedAt, now(), JSON.stringify(ride.summary), data);
+    },
+
+    deleteRidesOf(userId: string) {
+      q.deleteRidesOf.run(userId);
+    },
+
+    countRides(userId: string): number {
+      return (q.countRidesOf.get(userId) as { n: number }).n;
     },
 
     session(tokenHash: string): Session | null {
