@@ -15,6 +15,8 @@ export interface AccountUser {
   uploadedRides: number;
   /** Darf den Adminbereich unter /admin öffnen */
   admin: boolean;
+  /** Mit Strava verbunden */
+  strava?: boolean;
 }
 
 const USER_KEY = 'rechase.account';
@@ -47,6 +49,8 @@ class Account {
   user = $state<AccountUser | null>(read(USER_KEY, null));
   /** Ist die Google-Anmeldung auf dem Server eingerichtet? */
   google = $state(false);
+  /** Ist Strava auf dem Server eingerichtet? */
+  strava = $state(false);
   /** Antwort vom Server da (oder offline aufgegeben) */
   loaded = $state(false);
   /** Rad der nächsten Fahrt; Vorauswahl ist das zuletzt genutzte, sonst das Standardrad */
@@ -63,10 +67,11 @@ class Account {
     try {
       const [me, config] = await Promise.all([
         api<{ user: AccountUser | null }>('GET', '/api/me'),
-        api<{ google: boolean }>('GET', '/api/auth/config'),
+        api<{ google: boolean; strava?: boolean }>('GET', '/api/auth/config'),
       ]);
       this.set(me.user);
       this.google = config.google;
+      this.strava = !!config.strava;
     } catch {
       // Offline oder Server ohne API: zwischengespeichertes Konto behalten
     }
@@ -88,6 +93,16 @@ class Account {
 
   async update(profile: { name?: string; bike?: BikeType; testConsent?: boolean }) {
     this.set((await api<{ user: AccountUser }>('PATCH', '/api/me', profile)).user);
+  }
+
+  /** Volle Seitennavigation zu Strava; zurück kommt man mit ?strava=verbunden */
+  connectStrava() {
+    location.href = '/api/strava/connect';
+  }
+
+  async disconnectStrava() {
+    await api('DELETE', '/api/strava', {});
+    await this.load();
   }
 
   async logout() {

@@ -14,6 +14,8 @@ export async function renderShareImage(opts: {
   title?: string;
   stats: RideStats;
   profile: SpeedProfile;
+  /** Mit Challenge-Link: unten ein Band „Challenge me“ mit der Adresse */
+  challenge?: { url: string };
 }): Promise<Blob | null> {
   await document.fonts?.ready;
   const c = document.createElement('canvas');
@@ -37,7 +39,9 @@ export async function renderShareImage(opts: {
   g.fillText(opts.title ? `${opts.title} · ${fmtDate(opts.startedAt)}` : fmtDate(opts.startedAt), 72, 172);
 
   // Spur, flächentreu genug für eine Hausrunde
-  const box = { x: 72, y: 230, w: W - 144, h: 640 };
+  // Mit Challenge-Band wird die Karte etwas flacher
+  const band = opts.challenge ? 120 : 0;
+  const box = { x: 72, y: 230, w: W - 144, h: 640 - band };
   g.fillStyle = css('--surface-2') || '#111418';
   roundRect(g, box.x, box.y, box.w, box.h, 36);
   g.fill();
@@ -89,7 +93,7 @@ export async function renderShareImage(opts: {
   const tw = (W - 144 - 24) / 2;
   tiles.forEach(([label, value, unit], i) => {
     const x = 72 + (i % 2) * (tw + 24);
-    const y = 910 + Math.floor(i / 2) * 136;
+    const y = 910 - band + Math.floor(i / 2) * 136;
     g.fillStyle = css('--surface') || '#171a1f';
     roundRect(g, x, y, tw, 120, 28);
     g.fill();
@@ -106,6 +110,21 @@ export async function renderShareImage(opts: {
       g.fillText(unit, x + 28 + w + 10, y + 100);
     }
   });
+
+  if (opts.challenge) {
+    const y = H - 48 - 112;
+    g.fillStyle = css('--you') || '#ff7a1a';
+    roundRect(g, 72, y, W - 144, 112, 28);
+    g.fill();
+    g.fillStyle = css('--bg') || '#0d0f12';
+    g.font = `700 52px ${num}`;
+    g.fillText('CHALLENGE ME', 104, y + 70);
+    g.font = `600 30px ${text}`;
+    const link = opts.challenge.url.replace(/^https?:\/\//, '');
+    g.textAlign = 'right';
+    g.fillText(link, W - 104, y + 68);
+    g.textAlign = 'left';
+  }
 
   return new Promise((resolve) => c.toBlob(resolve, 'image/png'));
 }

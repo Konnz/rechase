@@ -100,7 +100,7 @@ export class RideRecorder {
       rejected: 0,
       userAgent: navigator.userAgent,
       ...(source ? {} : { altitudeRef: this.geoid || !altitudeIsEllipsoidal() ? 'msl' : 'ellipsoid' }),
-      ...(duel ? { routeId: duel.stored.id } : {}),
+      ...(duel ? (duel.foreign ? { challengeId: duel.foreign.id } : { routeId: duel.stored.id }) : {}),
       ...(bike ? { bike } : {}),
     };
 

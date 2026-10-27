@@ -14,12 +14,16 @@ const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 const google = clientId && clientSecret ? { clientId, clientSecret } : undefined;
 const publicUrl = process.env.PUBLIC_URL?.trim() || undefined;
+const stravaId = process.env.STRAVA_CLIENT_ID?.trim();
+const stravaSecret = process.env.STRAVA_CLIENT_SECRET?.trim();
+const strava = stravaId && stravaSecret ? { clientId: stravaId, clientSecret: stravaSecret } : undefined;
 const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').filter((e) => e.trim());
 
-const server = createApp({ publicDir, version, pin, store, google, publicUrl, adminEmails }).listen(port, () => {
+const server = createApp({ publicDir, version, pin, store, google, publicUrl, adminEmails, strava }).listen(port, () => {
   const extras = [
     pin && 'PIN-Sperre aktiv',
     google && 'Google-Anmeldung aktiv',
+    strava && 'Strava aktiv',
     adminEmails.length && `${adminEmails.length} Admin${adminEmails.length === 1 ? '' : 's'}`,
   ].filter(Boolean).join(', ');
   console.log(`re:chase ${version} lauscht auf Port ${port}${extras ? ` (${extras})` : ''}`);

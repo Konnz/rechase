@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { BIKE_CLASS_LABELS, bikeInfo, rideStats, speedProfile, type BikeType } from '@rechase/core';
+  import { BIKE_CLASS_LABELS, bikeInfo, rideStats, speedProfile, trimForPrivacy, type BikeType } from '@rechase/core';
   import { onMount } from 'svelte';
-  import type { StoredRide, StoredRoute } from '../db.ts';
+  import type { StoredChallenge, StoredRide, StoredRoute } from '../db.ts';
+  import type { ChallengeResult } from '../share/challenges.ts';
+  import ChallengeShare from '../share/ChallengeShare.svelte';
+  import { privacyPrefs } from '../share/privacy.svelte.ts';
   import { toGpx } from '../export.ts';
   import { fmtDate, fmtDuration, fmtGapSeconds, fmtInt, fmtKm, fmtKmh } from '../format.ts';
   import BikePicker from '../account/BikePicker.svelte';
@@ -17,8 +20,11 @@
     result = null,
     simulated = false,
     sectionPrs = 0,
+    challenge = null,
+    challengeResult = null,
     onsave,
     onamend,
+    onaccount,
     onclose,
   }: {
     ride: StoredRide;
@@ -29,10 +35,15 @@
     simulated?: boolean;
     /** So viele Abschnitts-PRs gab es während der Fahrt */
     sectionPrs?: number;
+    /** Geteilter Ghost, gegen den die Fahrt lief */
+    challenge?: StoredChallenge | null;
+    challengeResult?: ChallengeResult | null;
     /** Merkt die Fahrt als Strecke; liefert die neue Strecke oder null bei Abbruch */
     onsave: (ride: StoredRide) => Promise<StoredRoute | null>;
     /** Rad korrigieren oder der Plausibilitätsprüfung widersprechen */
     onamend: (ride: StoredRide, change: Pick<StoredRide, 'bike' | 'appealedAt'>) => Promise<StoredRide>;
+    /** Anmelden oder Onboarding, um teilen zu können */
+    onaccount: () => void;
     onclose: () => void;
   } = $props();
 
@@ -44,6 +55,9 @@
   const counts = $derived(rideCounts(ride));
   let pickBike = $state(false);
   const speed = $derived(speedProfile(ride.samples));
+  // Für Bilder, die das Gerät verlassen: Start und Ende gekürzt (Privatzonen)
+  const shareSpeed = $derived(speedProfile(trimForPrivacy(ride.samples, privacyPrefs.options(ride.id)) ?? []));
+  const shareable = $derived(!simulated && !!ride.endedAt && counts && stats.distance >= MIN_ROUTE_M);
   let saved = $state.raw<StoredRoute | null>(null);
   const onRoute = $derived(saved ?? route);
   let busy = $state(false);
@@ -56,7 +70,7 @@
   const shareTitle = $derived(`re:chase · ${fmtKm(stats.distance)} km in ${fmtDuration(stats.movingTime)}`);
 
   onMount(() => {
-    void renderShareImage({ startedAt: ride.startedAt, title: onRoute?.name, stats, profile: speed }).then(
+    void renderShareImage({ startedAt: ride.startedAt, title: onRoute?.name, stats, profile: shareSpeed }).then(
       (blob) => {
         if (blob) image = new File([blob], `rechase-${stamp}.png`, { type: 'image/png' });
       },
@@ -152,6 +166,28 @@
       </section>
     {/if}
 
+    {#if challengeResult}
+      {@const c = challengeResult}
+      <section class="result" aria-live="polite">
+        <span class="label">{c.challenge.name} · Ghost von {c.challenge.chaser}</span>
+        {#if c.time == null}
+          <span class="headline">Strecke nicht zu Ende gefahren</span>
+          <span class="what">Gewertet wird nur, wer vom Start bis ins Ziel fährt.</span>
+        {:else if !c.counted}
+          <span class="headline">Nicht gewertet</span>
+          <span class="what">{fmtDuration(c.time)} bewegt · zählt nicht für die Challenge</span>
+        {:else}
+          {@const delta = (c.time - c.challenge.time) / 1000}
+          <span class="headline" class:win={c.won}>{c.won ? `${c.challenge.chaser} geschlagen` : `${c.challenge.chaser} vorn`}</span>
+          <span class="what">
+            {fmtDuration(c.time)} bewegt · {delta < 0 ? '−' : '+'}{fmtGapSeconds(delta)} gegenüber {fmtDuration(
+              c.challenge.time,
+            )}{c.previousBest != null && c.time < c.previousBest ? ' · deine neue Bestzeit hier' : ''}
+          </span>
+        {/if}
+      </section>
+    {/if}
+
     {#if !simulated && ride.endedAt && !check.ok}
       <section class="check" class:open={!counts} aria-live="polite">
         {#if counts}
@@ -235,6 +271,19 @@
         </span>
       </div>
     </section>
+
+    {#if shareable}
+      <ChallengeShare
+        {ride}
+        route={onRoute}
+        {challenge}
+        won={!!challengeResult?.won}
+        {stats}
+        profile={shareSpeed}
+        {onaccount}
+        onsay={say}
+      />
+    {/if}
 
     <section class="actions">
       {#if onRoute}

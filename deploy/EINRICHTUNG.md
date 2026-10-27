@@ -128,3 +128,20 @@ cd /opt/rechase && sudo -u rechase docker compose up -d app
 ```
 
 Im Log steht danach „1 Admin“.
+
+## 9. Strava (optional)
+
+Ohne diese Werte fehlt in der App nur der Knopf „Zu Strava hochladen“; Challenge-Links funktionieren auch so. Die App lädt Fahrten als GPX hoch und schreibt Ergebnis und Challenge-Link in die Beschreibung. Bilder kann die Strava-API nicht an Aktivitäten hängen.
+
+1. Mit deinem Strava-Konto auf [strava.com/settings/api](https://www.strava.com/settings/api) eine App anlegen: Name re:chase, Kategorie „Training“, Website `https://rechase.konnerths.de`, **Authorization Callback Domain** `rechase.konnerths.de` (nur die Domain, ohne https).
+2. Client-ID und Client Secret eintragen, `<ID>` und `<SECRET>` ersetzen:
+
+```bash
+printf 'STRAVA_CLIENT_ID=<ID>\nSTRAVA_CLIENT_SECRET=<SECRET>\n' | sudo -u rechase tee -a /opt/rechase/.env >/dev/null
+```
+
+```bash
+cd /opt/rechase && sudo -u rechase docker compose up -d app
+```
+
+Im Log steht danach „Strava aktiv“, und im Profil erscheint „Mit Strava verbinden“. Neue Strava-Apps dürfen zunächst nur wenige Athleten verbinden (anfangs nur dich selbst); für den Feldtest bei Strava unter „My API Application“ mehr Plätze beantragen.

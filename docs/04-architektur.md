@@ -59,7 +59,8 @@ docs/         Konzept, Machbarkeit, Backlog, Architektur
 - `sessions` (token_hash, user_id, expires_at) ✅
 - `routes` (id, owner_id, name, geom `LineString`, length_m, elevation_profile)
 - `rides` (id, user_id, route_id, bike, started_at, moving_time_s, total_time_s, distance_m, track `LineStringZM` oder komprimierte Punktliste, privacy_trim_m)
-- `ghosts` (id, ride_id, share_token, created_at, expires_at)
+- `ghosts` (code, user_id, ride_id, name, bike, length_m, time_ms, day, views, data = gekürzter Ghost als gzip-JSON, image = Teilbild für Messenger) ✅ – Link `/c/<code>`, nur per Link sichtbar, verschwindet mit dem Konto
+- `strava` (user_id, athlete_id, Tokens) ✅ – Upload mit Challenge-Link in der Beschreibung
 - `replies` (id, ghost_id, ride_id) – die „Re:“-Antworten
 
 Lokal (IndexedDB) liegen dieselben Strukturen, sodass Sync später nur ein Abgleich ist.

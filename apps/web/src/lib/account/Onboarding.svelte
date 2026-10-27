@@ -60,6 +60,11 @@
       kannst du das Rad mit einem Tipp umstellen.
     </p>
 
+    <p class="small">
+      Privatzonen sind an: Teilst du eine Fahrt, werden Start und Ende zufällig um 300–800 m gekürzt. Feste Zonen wie
+      Zuhause legst du im Profil an.
+    </p>
+
     {#if error}
       <p class="error" role="alert">{error}</p>
     {/if}

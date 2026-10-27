@@ -1,11 +1,14 @@
 import { createReadStream } from 'node:fs';
+import { challengeCodeFromPath } from '@rechase/core';
 import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createAccounts, type GoogleConfig } from './accounts.ts';
 import { createAdmin } from './admin.ts';
+import { createGhosts } from './ghosts.ts';
 import { createPinGate } from './pin.ts';
 import { createRides } from './rides.ts';
+import { createStrava, type StravaConfig } from './strava.ts';
 import type { Store } from './store.ts';
 
 const TYPES: Record<string, string> = {
@@ -39,15 +42,31 @@ export interface AppOptions {
   publicUrl?: string;
   /** E-Mail-Adressen mit Zugang zum Adminbereich */
   adminEmails?: readonly string[];
+  strava?: StravaConfig;
+  /** Für Tests: Aufrufe an Google und Strava */
+  fetch?: typeof fetch;
 }
 
 /** Liefert die gebaute PWA aus und beantwortet die API unter /api. */
-export function createApp({ publicDir, version, pin, store, google, publicUrl, adminEmails }: AppOptions) {
+export function createApp({ publicDir, version, pin, store, google, publicUrl, adminEmails, strava, fetch }: AppOptions) {
   const root = resolve(publicDir);
-  const gate = pin ? createPinGate(pin) : null;
-  const accounts = store ? createAccounts({ store, google, publicUrl, adminEmails }) : null;
+  const accounts = store
+    ? createAccounts({ store, google, publicUrl, adminEmails, stravaEnabled: !!strava, fetch })
+    : null;
   const rides = store && accounts ? createRides({ store, accounts }) : null;
   const admin = store && accounts ? createAdmin({ store, accounts }) : null;
+  const ghosts = store && accounts ? createGhosts({ store, accounts, publicUrl, publicDir: root }) : null;
+  const stravaApi = store && accounts ? createStrava({ store, accounts, strava, publicUrl, fetch }) : null;
+  // Hinter der PIN-Sperre bleiben Vorschaubild und Vorschau-Tags geteilter Challenges sichtbar, damit Messenger sie zeigen
+  const gate = pin
+    ? createPinGate(pin, Date.now, {
+        isPublic: (url) => !!ghosts?.imageCode(url.pathname),
+        head: (req, url) => {
+          const code = challengeCodeFromPath(url.pathname);
+          return code && ghosts ? ghosts.previewHead(req, code) : '';
+        },
+      })
+    : null;
 
   async function sendFile(res: ServerResponse, path: string, cache: string) {
     const info = await stat(path).catch(() => null);
@@ -76,6 +95,8 @@ export function createApp({ publicDir, version, pin, store, google, publicUrl, a
     if (accounts && (await accounts.handle(req, res, url))) return;
     if (rides && (await rides.handle(req, res, url))) return;
     if (admin && (await admin.handle(req, res, url))) return;
+    if (ghosts && (await ghosts.handle(req, res, url))) return;
+    if (stravaApi && (await stravaApi.handle(req, res, url))) return;
     if (url.pathname.startsWith('/api/')) {
       res.writeHead(404, { 'Content-Type': 'application/json' }).end('{"error":"Keine API"}');
       return;

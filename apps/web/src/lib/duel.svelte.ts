@@ -21,7 +21,7 @@ import {
   type Route,
   type SectionResult,
 } from '@rechase/core';
-import type { StoredRoute } from './db.ts';
+import type { StoredChallenge, StoredRoute } from './db.ts';
 import { toRoute, type Opponent } from './routes.ts';
 
 /** abandoned: unterwegs angenommenes Duell, Start nicht erreicht oder Strecke verlassen; endet still */
@@ -63,17 +63,21 @@ export class Duel {
   private sectionTimer: SectionTimer;
   /** Nur bei Duellen, die unterwegs angeboten wurden (E27) */
   private abandon: ChallengeAbandon | null;
+  /** Geteilter Ghost eines anderen Chasers (E11-3); stored ist dann nur seine Strecke */
+  readonly foreign: StoredChallenge | null;
 
   /**
    * sectionBests: bisher beste Zeit je Abschnitt, siehe sectionBestsFor.
    * challenge: unterwegs angeboten; verlässt man die Strecke, endet das Duell still statt zu warten.
+   * foreign: Duell gegen einen geteilten Ghost statt gegen eine eigene Strecke.
    */
   constructor(
     stored: StoredRoute,
     opponent: Opponent,
     sectionBests: readonly (number | null)[] = [],
-    { challenge = false } = {},
+    { challenge = false, foreign = null }: { challenge?: boolean; foreign?: StoredChallenge | null } = {},
   ) {
+    this.foreign = foreign;
     this.stored = stored;
     this.opponent = opponent;
     this.ghost = opponent.ghost;
