@@ -1,9 +1,11 @@
 import {
   averageGhost,
+  bestSectionTimes,
   buildRoute,
   elevationProfile,
   finishTime,
   ghostFromSamples,
+  sectionBounds,
   type ElevationProfile,
   type Ghost,
   type Route,
@@ -91,6 +93,21 @@ export async function loadOpponent(
     time: route.bestTime,
     profile,
   };
+}
+
+/**
+ * Bisher beste Zeit je Abschnitt der Strecke aus allen Fahrten darauf, auch abgebrochenen.
+ * Grundlage für Abschnitts-PRs während der Fahrt.
+ */
+export function sectionBestsFor(route: StoredRoute, rides: readonly StoredRide[]): (number | null)[] {
+  const r = toRoute(route);
+  const bounds = sectionBounds(r.length);
+  if (!bounds.length) return [];
+  const on = rides.filter((x) => x.id === route.bestRideId || x.routeId === route.id);
+  return bestSectionTimes(
+    on.map((x) => ghostFromSamples(r, x.samples)),
+    bounds,
+  );
 }
 
 export interface RideResult {

@@ -1,18 +1,24 @@
 import {
+  DuelCues,
   FINISH_TOLERANCE_M,
   GapTrend,
   RouteProgress,
+  SectionTimer,
   compareToGhost,
   distanceM,
   ghostDistanceAt,
   ghostSpeedAt,
   ghostTimeAt,
   pointAt,
+  sectionBounds,
+  tickInterval,
+  type Cue,
   type Ghost,
   type GhostGap,
   type LatLon,
   type MotionSample,
   type Route,
+  type SectionResult,
 } from '@rechase/core';
 import type { StoredRoute } from './db.ts';
 import { toRoute, type Opponent } from './routes.ts';
@@ -42,17 +48,28 @@ export class Duel {
   ghostPos = $state.raw<LatLon | null>(null);
   /** Abstand zum Startpunkt, solange das Duell noch nicht läuft */
   toStart = $state<number | null>(null);
+  /** Abstand zwischen zwei Ticks in ms, solange man knapp hinter dem Ghost liegt */
+  tickMs = $state<number | null>(null);
+  /** Grenzen der Abschnitte in m, leer bei kurzen Strecken */
+  readonly sections: readonly number[];
+  /** Abschnitts-PRs dieser Fahrt */
+  sectionPrs = $state.raw<SectionResult[]>([]);
 
   private progress: RouteProgress;
   private trendCalc = new GapTrend();
+  private cues = new DuelCues();
+  private sectionTimer: SectionTimer;
 
-  constructor(stored: StoredRoute, opponent: Opponent) {
+  /** sectionBests: bisher beste Zeit je Abschnitt, siehe sectionBestsFor */
+  constructor(stored: StoredRoute, opponent: Opponent, sectionBests: readonly (number | null)[] = []) {
     this.stored = stored;
     this.opponent = opponent;
     this.ghost = opponent.ghost;
     this.route = toRoute(stored);
     this.progress = new RouteProgress(this.route);
     this.ghostPos = pointAt(this.route, 0);
+    this.sections = sectionBounds(this.route.length);
+    this.sectionTimer = new SectionTimer(this.sections, sectionBests);
   }
 
   /** Tempo des Ghosts an meiner Stelle (m/s) */
@@ -65,12 +82,13 @@ export class Duel {
     return ghostTimeAt(this.ghost, this.along);
   }
 
-  push(s: MotionSample) {
-    if (this.phase === 'finished') return;
+  /** Nimmt einen Punkt der Fahrt auf und liefert die Ereignisse, auf die ein Ton folgt. */
+  push(s: MotionSample): Cue[] {
+    if (this.phase === 'finished') return [];
     const r = this.progress.push(s);
     if (!r) {
       this.toStart = this.route.points.length ? distanceM(s, this.route.points[0]) : null;
-      return;
+      return [];
     }
     this.phase = 'racing';
     this.toStart = null;
@@ -88,5 +106,23 @@ export class Duel {
       this.along = this.route.length;
       this.phase = 'finished';
     }
+    const finished = this.phase === 'finished';
+    this.tickMs = !finished && s.moving && r.onRoute ? tickInterval(gap.seconds, this.trend) : null;
+
+    const sections = this.sectionTimer.push(this.along, this.time, r.onRoute);
+    const prs = sections.filter((x) => x.pr);
+    if (prs.length) this.sectionPrs = [...this.sectionPrs, ...prs];
+    return [
+      ...sections.map((x): Cue => ({ kind: 'section', ...x })),
+      ...this.cues.push({
+        t: s.t,
+        along: this.along,
+        routeLength: this.route.length,
+        gapMeters: gap.meters,
+        onRoute: r.onRoute,
+        finished,
+        won: this.time < this.opponent.time,
+      }),
+    ];
   }
 }

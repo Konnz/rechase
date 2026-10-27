@@ -15,6 +15,7 @@
     route = null,
     result = null,
     simulated = false,
+    sectionPrs = 0,
     onsave,
     onclose,
   }: {
@@ -24,6 +25,8 @@
     /** Duell-Ergebnis, falls die Fahrt auf einer Strecke gewertet wurde */
     result?: RideResult | { route: StoredRoute; incomplete: true } | null;
     simulated?: boolean;
+    /** So viele Abschnitts-PRs gab es während der Fahrt */
+    sectionPrs?: number;
     /** Merkt die Fahrt als Strecke; liefert die neue Strecke oder null bei Abbruch */
     onsave: (ride: StoredRide) => Promise<StoredRoute | null>;
     onclose: () => void;
@@ -117,6 +120,11 @@
             {fmtDuration(result.time)} bewegt · {delta < 0 ? '−' : '+'}{fmtGapSeconds(delta)} gegenüber {fmtDuration(
               result.previousBest,
             )}{result.newBest ? ' · ist jetzt dein Ghost' : ''}
+          </span>
+        {/if}
+        {#if sectionPrs}
+          <span class="what prs">
+            {sectionPrs} {sectionPrs === 1 ? 'Abschnitts-PR' : 'Abschnitts-PRs'} · +{sectionPrs * 20} Punkte
           </span>
         {/if}
       </section>
@@ -346,6 +354,10 @@
   .what {
     font-size: 13px;
     color: var(--muted);
+  }
+  .prs {
+    color: var(--you);
+    font-weight: 600;
   }
   .actions {
     display: flex;
