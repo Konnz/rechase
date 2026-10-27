@@ -2,6 +2,7 @@
   import { fmtDuration, fmtInt, fmtKm, fmtKmh } from '../format.ts';
   import type { RideRecorder } from '../tracker.svelte.ts';
   import LiveMap, { type LatLon } from './LiveMap.svelte';
+  import { mapPrefs } from './prefs.svelte.ts';
 
   let {
     rec,
@@ -32,7 +33,9 @@
     </button>
     <div class="title">
       <span class="name">{title}</span>
-      <span class="sub">Karte · {following ? 'folgt dir' : 'frei verschoben'}</span>
+      <span class="sub">
+        Karte · {following ? 'folgt dir' : 'frei verschoben'} · {mapPrefs.headingUp ? 'Fahrtrichtung' : 'Norden'} oben
+      </span>
     </div>
     <span class="dot" class:on={active} aria-hidden="true"></span>
   </header>
@@ -44,6 +47,21 @@
       <span class="label">Strecke</span>
       <span class="num">{fmtKm(cur?.distance ?? 0)} <small>km</small></span>
     </div>
+
+    <button
+      class="icon compass"
+      aria-label={mapPrefs.headingUp ? 'Norden nach oben' : 'Fahrtrichtung nach oben'}
+      aria-pressed={mapPrefs.headingUp}
+      onclick={() => (mapPrefs.headingUp = !mapPrefs.headingUp)}
+    >
+      {#if mapPrefs.headingUp}
+        <!-- Fahrtrichtung oben: Navigationspfeil -->
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="var(--you)" stroke="var(--you)" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3 19 20l-7-4-7 4z"></path></svg>
+      {:else}
+        <!-- Norden oben: Kompassnadel mit N -->
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24"><path d="M12 6 15 13H9z" fill="#ff453a"></path><path d="M12 20 9 13h6z" fill="currentColor"></path><text x="12" y="5" text-anchor="middle" font-size="6" font-weight="700" fill="currentColor">N</text></svg>
+      {/if}
+    </button>
 
     {#if !following}
       <button class="icon recenter" aria-label="Karte auf mich zentrieren" onclick={() => (following = true)}>
@@ -157,6 +175,11 @@
     padding: 8px 12px;
     border-radius: 12px;
     background: rgba(13, 15, 18, 0.82);
+  }
+  .compass {
+    position: absolute;
+    right: 14px;
+    top: 14px;
   }
   .recenter {
     position: absolute;

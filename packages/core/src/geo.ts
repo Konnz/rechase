@@ -10,3 +10,13 @@ export function distanceM(a: { lat: number; lon: number }, b: { lat: number; lon
 }
 
 export const kmh = (ms: number) => ms * 3.6;
+
+/** Kurs von a nach b in Grad (0 = Norden, 90 = Osten). */
+export function bearingDeg(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+  const lat1 = rad(a.lat);
+  const lat2 = rad(b.lat);
+  const dLon = rad(b.lon - a.lon);
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
