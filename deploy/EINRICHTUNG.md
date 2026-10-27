@@ -20,6 +20,12 @@ sudo install -d -o rechase -g rechase -m 750 /opt/rechase
 printf 'APP_IMAGE=ghcr.io/konnz/rechase\nAPP_TAG=latest\nAPP_HOST_PORT=3150\n' | sudo -u rechase tee /opt/rechase/.env >/dev/null
 ```
 
+PIN-Sperre für die Entwicklungsphase (ohne `APP_PIN` startet der Stack nicht), `<PIN>` ersetzen:
+
+```bash
+echo 'APP_PIN=<PIN>' | sudo -u rechase tee -a /opt/rechase/.env >/dev/null
+```
+
 ```bash
 sudo chmod 600 /opt/rechase/.env
 ```

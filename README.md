@@ -26,7 +26,7 @@ npm run dev      # PWA mit Vite, auch im LAN erreichbar
 npm test         # Unit-Tests (core, server)
 npm run check    # Typecheck
 npm run build    # PWA nach build/public, Server nach build/index.js
-npm start        # gebaute App auf Port 3000
+npm start        # gebaute App auf Port 3000 (mit APP_PIN=… davor: PIN-Sperre)
 ```
 
 Hinweis: GPS und Service Worker funktionieren im Browser nur über HTTPS oder `localhost`. Zum Testen auf dem Handy also die deployte Version nutzen oder einen HTTPS-Tunnel.
@@ -35,5 +35,5 @@ Hinweis: GPS und Service Worker funktionieren im Browser nur über HTTPS oder `l
 |---|---|
 | `packages/core` | Domänenlogik ohne Browser-APIs: Distanz, faire Auto-Pause, Ghost-Vergleich |
 | `apps/web` | PWA (Svelte 5, Vite, vite-plugin-pwa) |
-| `apps/server` | Node-Server: liefert die PWA aus, `/healthz` |
+| `apps/server` | Node-Server: liefert die PWA aus, `/healthz`, PIN-Sperre über `APP_PIN` |
 | `deploy/`, `Dockerfile`, `compose.yaml` | Deployment auf den VPS, siehe [Architektur](docs/04-architektur.md) |

@@ -16,6 +16,8 @@ services:
     env_file: .env
     environment:
       PORT: 3000
+      # PIN-Sperre während der Entwicklung; ohne APP_PIN in der .env startet der Stack bewusst nicht.
+      APP_PIN: ${APP_PIN:?APP_PIN fehlt}
     ports:
       # Nur an 127.0.0.1: allein nginx auf demselben Rechner kommt heran. Ohne das wäre der Port trotz Firewall offen.
       - '127.0.0.1:${APP_HOST_PORT:-3150}:3000'

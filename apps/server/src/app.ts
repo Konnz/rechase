@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
+import { createPinGate } from './pin.ts';
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -26,11 +27,14 @@ const SECURITY_HEADERS = {
 export interface AppOptions {
   publicDir: string;
   version: string;
+  /** Wenn gesetzt, ist die App nur nach Eingabe dieser PIN erreichbar. */
+  pin?: string;
 }
 
 /** Liefert die gebaute PWA aus. Später kommen hier die API-Routen unter /api dazu. */
-export function createApp({ publicDir, version }: AppOptions) {
+export function createApp({ publicDir, version, pin }: AppOptions) {
   const root = resolve(publicDir);
+  const gate = pin ? createPinGate(pin) : null;
 
   async function sendFile(res: ServerResponse, path: string, cache: string) {
     const info = await stat(path).catch(() => null);
@@ -53,6 +57,8 @@ export function createApp({ publicDir, version }: AppOptions) {
       res.end(JSON.stringify({ ok: true, version }));
       return;
     }
+
+    if (gate && (await gate.handle(req, res, url))) return;
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { Allow: 'GET, HEAD' }).end();
