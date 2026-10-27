@@ -10,6 +10,7 @@ Tracking-App für Radfahrer, bei der man Bestzeiten auf bekannten Strecken live 
 - [PWA-Machbarkeit](docs/02-pwa-machbarkeit.md): Was kann eine Web-App beim Tracking, was nicht?
 - [Backlog](docs/03-backlog.md): Epics, User Stories, MVP und später
 - [Architektur und Deployment](docs/04-architektur.md): VPS, Monorepo, Komponenten je Release
+- [Community und Gamification](docs/05-community-und-gamification.md): mehrere Chaser, Revier, Ränge, Badges, Punkte, Anti-Cheat, Strava
 - [Design-Referenzen](design/README.md): Mockups und Design-Tokens
 
 ## Status
