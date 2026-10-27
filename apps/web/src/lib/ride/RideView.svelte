@@ -30,6 +30,14 @@
 
   /** true: Karte groß, Straße klein oben rechts. Bei freier Fahrt zählt die Karte, im Duell die Chase-Sicht. */
   let swapped = $state(untrack(() => !duel));
+  // Kommt unterwegs ein Duell dazu (Angebot angenommen) oder endet es still, wechselt die Ansicht mit
+  let shown = untrack(() => duel);
+  $effect(() => {
+    const d = duel;
+    if (d === shown) return;
+    shown = d;
+    swapped = !d;
+  });
   // Die Zeichenfläche wächst mit der Höhe der Ansicht nach oben in den Himmel, damit seitlich wenig abgeschnitten wird
   let sceneW = $state(390);
   let sceneH = $state(600);

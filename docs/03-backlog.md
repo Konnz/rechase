@@ -133,15 +133,17 @@ Fährt man frei los und biegt auf eine bekannte Strecke oder einen Abschnitt ein
 
 | ID | Story | Prio | Größe |
 |---|---|---|---|
-| E27-1 | Als Fahrer will ich, dass die App während einer freien Fahrt erkennt, dass ich auf den **Start einer meiner gemerkten Strecken** (E3) zufahre (Abstand unter ca. 200 m, Fahrtrichtung passt), und mir ein Duell anbietet. | M | M |
-| E27-2 | Als Fahrer will ich das Angebot **ohne Antippen** nutzen: eigener Ton, große Einblendung „Hausrunde Isar · Bestzeit 42:13 · startet an der Linie“, die nach 5 s von selbst angenommen wird. Ablehnen per großer Fläche oder einfach Weiterfahren abseits der Strecke. | M | M |
-| E27-3 | Als Fahrer will ich, dass die Zeit erst beim **Überfahren der Startlinie** läuft (fliegender Start, Auto-Pause gilt) und das Duell ohne Strafe still endet, wenn ich die Strecke verlasse. Gewertet wird nur, wer bis zum Ziel fährt. | M | M |
-| E27-4 | Als Fahrer will ich einstellen, ob Angebote **automatisch starten**, **nur angeboten** werden oder **aus** sind, und einzelne Strecken mit „nicht mehr anbieten“ stummschalten. Pro Fahrt kommt jede Strecke höchstens einmal. | M | S |
-| E27-5 | Als Fahrer will ich, dass als Gegner mein Standard-Ghost aus E4-10 vorgewählt ist (letzte Fahrt, Durchschnitt oder Bestzeit). | S | S |
+| E27-1 | ✅ Als Fahrer will ich, dass die App während einer freien Fahrt erkennt, dass ich auf den **Start einer meiner gemerkten Strecken** (E3) zufahre (Abstand unter ca. 200 m, Fahrtrichtung passt), und mir ein Duell anbietet. | M | M |
+| E27-2 | ✅ Als Fahrer will ich das Angebot **ohne Antippen** nutzen: eigener Ton, große Einblendung „Hausrunde Isar · Bestzeit 42:13 · startet an der Linie“, die nach 5 s von selbst angenommen wird. Ablehnen per großer Fläche oder einfach Weiterfahren abseits der Strecke. | M | M |
+| E27-3 | ✅ Als Fahrer will ich, dass die Zeit erst beim **Überfahren der Startlinie** läuft (fliegender Start, Auto-Pause gilt) und das Duell ohne Strafe still endet, wenn ich die Strecke verlasse. Gewertet wird nur, wer bis zum Ziel fährt. | M | M |
+| E27-4 | ✅ Als Fahrer will ich einstellen, ob Angebote **automatisch starten**, **nur angeboten** werden oder **aus** sind, und einzelne Strecken mit „nicht mehr anbieten“ stummschalten. Pro Fahrt kommt jede Strecke höchstens einmal. | M | S |
+| E27-5 | ✅ Als Fahrer will ich, dass als Gegner mein Standard-Ghost aus E4-10 vorgewählt ist (letzte Fahrt, Durchschnitt oder Bestzeit). | S | S |
 | E27-6 | (R2) Als Chaser will ich auch bei **öffentlichen Abschnitten und Strecken anderer Chaser** ein Angebot bekommen, z. B. „Anna war hier 12 s schneller, nach 49 km“. Vorgewählt ist der nächste Ghost aus meiner Radklasse und Wertungsklasse (E23-4) oder aus meiner Gruppe (E25). | M | L |
 | E27-7 | (R2) Als Plattform will ich nur Abschnitte anbieten, die die Sicherheitsregeln aus E26 erfüllen (keine Abfahrten, keine kreuzungsreichen Stadtstücke), und nie private Fahrten oder Privatzonen anderer verraten (E11-6). | M | S |
 | E27-8 | (R2) Als Fahrer will ich, dass die Abschnitte in meiner Nähe beim Losfahren einmal geladen werden, damit die Erkennung ohne Netz und akkuschonend lokal läuft. | S | M |
 | E27-9 | Als Fahrer will ich, dass während eines laufenden Duells **kein weiteres Popup** kommt; Abschnitte unterwegs werden still mitgewertet und erst in der Zusammenfassung gezeigt (E23, E8). | S | S |
+
+Umsetzung R1: Angebot ab 200 m vor dem Startpunkt, wenn die Fahrtrichtung höchstens 60° von der Richtung der Strecke abweicht; es fällt weg, wenn man sich weiter als 260 m entfernt oder abbiegt. Die Uhr rastet erst an der Linie ein (fliegender Start). Ein unterwegs angenommenes Duell endet still, wenn man den Start nicht erreicht (über 300 m weg), mehr als 150 m neben die Strecke gerät oder 20 s am Stück neben ihr fährt. Während eines Duells kommt kein Angebot (E27-9, das stille Mitwerten fremder Abschnitte folgt mit R2). Testen am Schreibtisch: „Anfahrt simulieren“ in der Streckenliste.
 
 Grenzen in der PWA: Die Erkennung läuft nur, solange die App offen und der Bildschirm an ist (Wake Lock, siehe E7). Mit der nativen Hülle (E14) geht sie auch im Hintergrund und meldet sich per Ton.
 

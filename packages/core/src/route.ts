@@ -57,7 +57,7 @@ export function pointAt(route: Route, d: number): LatLon | null {
 const M_PER_DEG = 111_195;
 
 /** Lotfußpunkt von p auf das Segment a–b, in einer lokalen ebenen Näherung um p. */
-function projectOnSegment(p: LatLon, a: LatLon, b: LatLon): { t: number; dist: number } {
+function projectOnSegment(p: LatLon, a: LatLon, b: LatLon): { t: number; dist: number; raw: number } {
   const k = Math.cos((p.lat * Math.PI) / 180);
   const ax = (a.lon - p.lon) * k * M_PER_DEG;
   const ay = (a.lat - p.lat) * M_PER_DEG;
@@ -66,8 +66,9 @@ function projectOnSegment(p: LatLon, a: LatLon, b: LatLon): { t: number; dist: n
   const dx = bx - ax;
   const dy = by - ay;
   const len2 = dx * dx + dy * dy;
-  const t = len2 === 0 ? 0 : Math.min(1, Math.max(0, -(ax * dx + ay * dy) / len2));
-  return { t, dist: Math.hypot(ax + t * dx, ay + t * dy) };
+  const raw = len2 === 0 ? 0 : -(ax * dx + ay * dy) / len2;
+  const t = Math.min(1, Math.max(0, raw));
+  return { t, dist: Math.hypot(ax + t * dx, ay + t * dy), raw };
 }
 
 export interface MatchOptions {
@@ -79,6 +80,8 @@ export interface MatchOptions {
   maxSpeed: number;
   /** Suchweite (m) nach vorn, wenn man die Strecke verlassen hatte */
   rejoinAheadM: number;
+  /** Vor der Startlinie rastet man nur so nah (m) am Startpunkt ein; sonst erst beim Überfahren (fliegender Start) */
+  startSlackM: number;
 }
 
 export const defaultMatchOptions: MatchOptions = {
@@ -86,6 +89,7 @@ export const defaultMatchOptions: MatchOptions = {
   lockWithinM: 150,
   maxSpeed: 25,
   rejoinAheadM: 3000,
+  startSlackM: 5,
 };
 
 export interface RouteMatch {
@@ -130,9 +134,11 @@ export class RouteMatcher {
     let i = this.along == null ? 0 : this.seg;
     while (i > 0 && cum[i] > from - 30) i--;
     for (; i < points.length - 1 && cum[i] <= to; i++) {
-      const { t, dist } = projectOnSegment(p, points[i], points[i + 1]);
+      const { t, dist, raw } = projectOnSegment(p, points[i], points[i + 1]);
       const a = cum[i] + t * (cum[i + 1] - cum[i]);
       if (a > to || dist > o.corridorM) continue;
+      // Auf der Anfahrt vor der Linie läuft die Uhr noch nicht: beim Einrasten nur echte Lotfußpunkte
+      if (this.along == null && raw < 0 && dist > o.startSlackM) continue;
       // Bei gleich nahen Kandidaten gewinnt der, der am wenigsten weit vorn liegt
       const score = dist + 0.05 * Math.max(0, a - from);
       if (!best || score < best.score) best = { seg: i, along: a, dist, score };

@@ -4,6 +4,9 @@
   import { account } from './lib/account/account.svelte.ts';
   import AccountScreen from './lib/account/AccountScreen.svelte';
   import BikePicker from './lib/account/BikePicker.svelte';
+  import { ChallengeWatch } from './lib/challenge/challenge.svelte.ts';
+  import ChallengeOffer from './lib/challenge/ChallengeOffer.svelte';
+  import { CHALLENGE_MODES, challengePrefs } from './lib/challenge/prefs.svelte.ts';
   import FieldTest from './lib/account/FieldTest.svelte';
   import Onboarding from './lib/account/Onboarding.svelte';
   import Profile from './lib/account/Profile.svelte';
@@ -34,7 +37,7 @@
     type GhostMode,
     type RideResult,
   } from './lib/routes.ts';
-  import { replaySource } from './lib/sim.ts';
+  import { replaySource, withApproach } from './lib/sim.ts';
   import { PositionPreview } from './lib/preview.svelte.ts';
   import { SOUND_GROUPS, soundPrefs } from './lib/sound/prefs.svelte.ts';
   import { sounds } from './lib/sound/sounds.ts';
@@ -44,6 +47,16 @@
 
   const rec = new RideRecorder();
   rec.oncue = (c) => sounds.play(c);
+  /** Duell-Angebote unterwegs, mit dem eingestellten Standard-Ghost */
+  const watch = new ChallengeWatch(
+    rec,
+    async (route) => {
+      const opponent = await loadOpponent(route, ghostMode, rides);
+      return opponent && new Duel(route, opponent, sectionBestsFor(route, rides), { challenge: true });
+    },
+    (c) => sounds.play(c),
+  );
+  rec.onsample = (s) => watch.push(s);
   // raw: IndexedDB kann keine $state-Proxys speichern
   let rides = $state.raw<StoredRide[]>([]);
   let routes = $state.raw<StoredRoute[]>([]);
@@ -155,12 +168,16 @@
   const duel = $derived(rec.duel);
   const bestOf = $derived(new Map(routes.map((r) => [r.bestRideId, r])));
   const routeById = $derived(new Map(routes.map((r) => [r.id, r])));
+  const mutedRoutes = $derived(routes.filter((r) => challengePrefs.isMuted(r.id)));
 
   async function refresh() {
     [rides, routes] = await Promise.all([listRides().catch(() => []), listRoutes().catch(() => [])]);
   }
 
   async function stop() {
+    // Ein unterwegs angenommenes Duell, dessen Start man nicht erreicht hat, zählt nicht als abgebrochen
+    if (rec.duel?.challenge && rec.duel.phase === 'approach') rec.detachDuel();
+    watch.end();
     const d = rec.duel;
     const ride = await rec.stop();
     showMap = false;
@@ -185,7 +202,19 @@
       void requestPersistence();
       result = null;
       await rec.start({ bike: account.bike });
+      watch.begin(routes);
     }
+  }
+
+  /** Freie Fahrt am Schreibtisch: gerade Anfahrt auf den Start, dann die Bestzeit-Fahrt (für E27) */
+  async function simulateApproach(route: StoredRoute) {
+    const best = rides.find((r) => r.id === route.bestRideId);
+    if (!best) return;
+    sounds.unlock();
+    result = null;
+    notice = null;
+    await rec.start({ source: replaySource(withApproach(best.raw), { speedup: 2 }), persist: false, bike: account.bike });
+    watch.begin(routes.filter((r) => r.id === route.id));
   }
 
   async function startDuel(route: StoredRoute, simulate = false) {
@@ -212,6 +241,7 @@
       opts.persist = false;
     }
     await rec.start(opts);
+    if (!simulate) watch.begin(routes);
   }
 
   async function remember(r: StoredRide): Promise<StoredRoute | null> {
@@ -271,6 +301,7 @@
     ],
     finish: [{ kind: 'finish', won: true }],
     pause: [{ kind: 'pause', moving: false }, { kind: 'pause', moving: true }],
+    challenge: [{ kind: 'challenge', accepted: false }, { kind: 'challenge', accepted: true }],
   };
 
   function testSound(g: keyof typeof SAMPLES) {
@@ -327,6 +358,9 @@
   />
 {:else if active}
   <RideView {rec} {duel} onstop={stop} />
+  {#if watch.offer}
+    <ChallengeOffer {watch} offer={watch.offer} position={cur ?? rec.lastRaw} />
+  {/if}
 {:else}
 <main>
   <header>
@@ -508,6 +542,7 @@
               </span>
               <span class="links">
                 <button class="link" disabled={active} onclick={() => startDuel(route, true)}>Simulieren</button>
+                <button class="link" disabled={active} onclick={() => simulateApproach(route)}>Anfahrt simulieren</button>
                 <button class="link" disabled={active} onclick={() => removeRoute(route)}>Löschen</button>
               </span>
             </div>
@@ -556,6 +591,34 @@
       </ul>
     </section>
   {/if}
+
+  <details class="sounds">
+    <summary>Duell-Angebote unterwegs · {CHALLENGE_MODES.find((m) => m.id === challengePrefs.mode)?.label}</summary>
+    <p class="explain">
+      Fährst du auf den Start einer gemerkten Strecke zu, bietet die App etwa 200 m vorher ein Duell an. Die Zeit läuft
+      erst ab der Startlinie; verlässt du die Strecke, endet das Duell still und zählt nicht.
+    </p>
+    {#each CHALLENGE_MODES as m (m.id)}
+      <label class="row start">
+        <input
+          type="radio"
+          name="challenge-mode"
+          checked={challengePrefs.mode === m.id}
+          onchange={() => (challengePrefs.mode = m.id)}
+        />
+        <span class="opt">{m.label}<span class="what">{m.hint}</span></span>
+      </label>
+    {/each}
+    {#if mutedRoutes.length}
+      <span class="modelabel">Nicht mehr angeboten</span>
+      {#each mutedRoutes as r (r.id)}
+        <div class="row">
+          <span>{r.name}</span>
+          <button class="link" onclick={() => challengePrefs.setMuted(r.id, false)}>Wieder anbieten</button>
+        </div>
+      {/each}
+    {/if}
+  </details>
 
   <details class="sounds">
     <summary>Töne während der Fahrt · {soundPrefs.enabled ? 'an' : 'aus'}</summary>
@@ -933,6 +996,20 @@
     align-items: center;
     gap: 10px;
   }
+  .sounds .explain {
+    margin: 0 0 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .sounds .opt {
+    display: flex;
+    flex-direction: column;
+    font-weight: 600;
+  }
+  .sounds .opt .what {
+    font-weight: 400;
+  }
+  .sounds input[type='radio'],
   .sounds input[type='checkbox'] {
     width: 20px;
     height: 20px;

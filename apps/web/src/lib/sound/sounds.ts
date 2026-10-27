@@ -39,6 +39,11 @@ export function notesFor(c: Cue | { kind: 'tick' }): Note[] {
       return c.won ? seq([523, 659, 784, 1047], 0.09, 0.1, { wave: 'triangle' }) : seq([659, 523], 0.15, 0.16);
     case 'pause':
       return [{ f: c.moving ? 420 : 300, at: 0, dur: 0.025, gain: 0.15, wave: 'square' }];
+    case 'challenge':
+      // Angebot: fragend nach oben, Start: kurzer Doppelton wie ein Startsignal
+      return c.accepted
+        ? seq([1319, 1760], 0.1, 0.12, { wave: 'square', gain: 0.35 })
+        : seq([660, 880, 1175], 0.1, 0.11, { wave: 'triangle' });
   }
 }
 

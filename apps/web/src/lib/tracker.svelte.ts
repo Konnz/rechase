@@ -59,6 +59,8 @@ export class RideRecorder {
   simulated = $state(false);
   /** Bekommt jedes Ereignis der Fahrt, auf das ein Ton folgt */
   oncue: ((c: Cue) => void) | null = null;
+  /** Bekommt jeden angenommenen Punkt, nach dem Duell; z. B. für Duell-Angebote unterwegs */
+  onsample: ((s: MotionSample) => void) | null = null;
 
   private motion = new MotionTracker();
   private ride: StoredRide | null = null;
@@ -109,6 +111,18 @@ export class RideRecorder {
     document.addEventListener('visibilitychange', this.onVisibility);
 
     this.unwatch = (source ?? gpsSource)(this.onPosition, this.onError);
+  }
+
+  /** Duell während der Fahrt dazunehmen, z. B. nach einem Angebot unterwegs. Es läuft ab dem nächsten Punkt. */
+  attachDuel(duel: Duel) {
+    this.duel = duel;
+    if (this.ride) this.ride.routeId = duel.stored.id;
+  }
+
+  /** Duell still beenden, die Fahrt läuft frei weiter und zählt nicht für die Strecke. */
+  detachDuel() {
+    this.duel = null;
+    if (this.ride) delete this.ride.routeId;
   }
 
   async stop(): Promise<StoredRide | null> {
@@ -163,6 +177,7 @@ export class RideRecorder {
       if (this.wasMoving != null && sample.moving !== this.wasMoving) cues.unshift({ kind: 'pause', moving: sample.moving });
       this.wasMoving = sample.moving;
       for (const c of cues) this.oncue?.(c);
+      this.onsample?.(sample);
     }
     this.gaps = ride.gaps = this.motion.gaps;
     this.rejected = ride.rejected = this.motion.rejected;

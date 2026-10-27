@@ -11,7 +11,9 @@ export type Cue =
   | { kind: 'countdown'; meters: number }
   | ({ kind: 'section' } & SectionResult)
   | { kind: 'finish'; won: boolean }
-  | { kind: 'pause'; moving: boolean };
+  | { kind: 'pause'; moving: boolean }
+  /** Duell-Angebot unterwegs (E27): kommt, oder startet jetzt */
+  | { kind: 'challenge'; accepted: boolean };
 
 export type CueKind = Cue['kind'];
 
