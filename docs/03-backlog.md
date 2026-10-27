@@ -33,6 +33,7 @@ Details zu Community, Gamification, Radklassen, Anti-Cheat und Strava: [05-commu
 | 14 | Kaltstart: wenige Klassen, Gruppen per Einladungslink | R2 | E25 |
 | 15 | Sicherheit: keine Wettkampf-Abschnitte auf Abfahrten und Stadtstücken mit vielen Kreuzungen, Meldefunktion, Hinweise | R2 (vor fremden Abschnitts-Duellen) | E26, E19-6 |
 | 16 | Privatzonen standardmäßig an vor jedem Teilen | R2 (vor E11) | E11-6 |
+| 17 | Challenge-Popup: Die App erkennt während der Fahrt eine Strecke, die ich oder ein anderer Chaser schon gefahren ist, und bietet ein Duell an, das ohne Antippen startet | R1 (eigene Strecken), R2 (fremde Ghosts und Abschnitte) | E27 |
 
 Prioritäten: **M** = Must (ohne geht der Release nicht), **S** = Should, **C** = Could.
 Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
@@ -126,6 +127,23 @@ Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
 | E16-1 | ✅ Als Fahrer will ich auf Teilstücken meiner Strecke **Abschnitts-PRs** erzielen und dafür während der Fahrt einen kurzen Ton und ein „+20“ sehen. Umgesetzt mit automatischen Abschnitten von etwa 1 km (höchstens 10 je Strecke); gewertet nur, wer den Abschnitt nicht verlassen hat. | S | M |
 | E16-2 | Als Fahrer will ich vor der Fahrt bis zu drei **Fahrtziele** vorgeschlagen bekommen (z. B. negativer Split, nie mehr als 10 s zurück) und in der Zusammenfassung sehen, welche ich erreicht habe. | S | M |
 | E16-3 | Als Fahrer will ich für jede Fahrt **Punkte** bekommen (Kilometer, Ghost geschlagen, Abschnitts-PRs, Ziele) und eine Wochenserie aufbauen. Die Punkte bleiben erhalten, wenn ich später ein Konto anlege. | C | M |
+
+### Epic E27: Challenge unterwegs (Popup bei bekannter Strecke)
+Fährt man frei los und biegt auf eine bekannte Strecke oder einen Abschnitt ein, bietet die App ein Duell an. Gestartet wird wie in E23 mit **fliegendem Start** an der virtuellen Startlinie, deshalb muss das Angebot **vor** der Linie kommen. Am Lenker darf nichts ein Antippen verlangen: Ton plus große Einblendung, und ohne Reaktion gilt das Angebot als angenommen. Eigene Strecken ab R1, fremde Ghosts ab R2.
+
+| ID | Story | Prio | Größe |
+|---|---|---|---|
+| E27-1 | Als Fahrer will ich, dass die App während einer freien Fahrt erkennt, dass ich auf den **Start einer meiner gemerkten Strecken** (E3) zufahre (Abstand unter ca. 200 m, Fahrtrichtung passt), und mir ein Duell anbietet. | M | M |
+| E27-2 | Als Fahrer will ich das Angebot **ohne Antippen** nutzen: eigener Ton, große Einblendung „Hausrunde Isar · Bestzeit 42:13 · startet an der Linie“, die nach 5 s von selbst angenommen wird. Ablehnen per großer Fläche oder einfach Weiterfahren abseits der Strecke. | M | M |
+| E27-3 | Als Fahrer will ich, dass die Zeit erst beim **Überfahren der Startlinie** läuft (fliegender Start, Auto-Pause gilt) und das Duell ohne Strafe still endet, wenn ich die Strecke verlasse. Gewertet wird nur, wer bis zum Ziel fährt. | M | M |
+| E27-4 | Als Fahrer will ich einstellen, ob Angebote **automatisch starten**, **nur angeboten** werden oder **aus** sind, und einzelne Strecken mit „nicht mehr anbieten“ stummschalten. Pro Fahrt kommt jede Strecke höchstens einmal. | M | S |
+| E27-5 | Als Fahrer will ich, dass als Gegner mein Standard-Ghost aus E4-10 vorgewählt ist (letzte Fahrt, Durchschnitt oder Bestzeit). | S | S |
+| E27-6 | (R2) Als Chaser will ich auch bei **öffentlichen Abschnitten und Strecken anderer Chaser** ein Angebot bekommen, z. B. „Anna war hier 12 s schneller, nach 49 km“. Vorgewählt ist der nächste Ghost aus meiner Radklasse und Wertungsklasse (E23-4) oder aus meiner Gruppe (E25). | M | L |
+| E27-7 | (R2) Als Plattform will ich nur Abschnitte anbieten, die die Sicherheitsregeln aus E26 erfüllen (keine Abfahrten, keine kreuzungsreichen Stadtstücke), und nie private Fahrten oder Privatzonen anderer verraten (E11-6). | M | S |
+| E27-8 | (R2) Als Fahrer will ich, dass die Abschnitte in meiner Nähe beim Losfahren einmal geladen werden, damit die Erkennung ohne Netz und akkuschonend lokal läuft. | S | M |
+| E27-9 | Als Fahrer will ich, dass während eines laufenden Duells **kein weiteres Popup** kommt; Abschnitte unterwegs werden still mitgewertet und erst in der Zusammenfassung gezeigt (E23, E8). | S | S |
+
+Grenzen in der PWA: Die Erkennung läuft nur, solange die App offen und der Bildschirm an ist (Wake Lock, siehe E7). Mit der nativen Hülle (E14) geht sie auch im Hintergrund und meldet sich per Ton.
 
 ### Epic E7: Akku und Ablesbarkeit
 | ID | Story | Prio | Größe |
@@ -311,7 +329,7 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 
 ### Epic E13: Automatische Streckenerkennung
 - Oft gefahrene Strecken und Teilstücke automatisch erkennen (Clustering überlappender Fahrten).
-- Während der Fahrt erkennen, dass man auf ein bekanntes Teilstück einbiegt, und automatisch ein Duell anbieten (Ton + Einblendung).
+- Während der Fahrt erkennen, dass man auf ein **nicht angelegtes**, aber oft gefahrenes Teilstück einbiegt, und wie in E27 automatisch ein Duell anbieten. Gemerkte Strecken und Abschnitte deckt schon E27 ab.
 - Teilstück-Bestzeiten, ohne dass Segmente manuell angelegt werden; dieselben virtuellen Linien und Regeln wie in E23.
 
 ### Epic E14: Native App (Capacitor-Wrapper der PWA)
@@ -339,9 +357,9 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 2. **Sprint 1:** E1, E2, E9, Q-1 → man kann fahren und eine faire Zeit aufzeichnen.
 3. **Sprint 2:** E3, E4-1 bis E4-3, Q-2 → Duell-Logik läuft im Simulator.
 4. **Sprint 3:** E4-4 bis E4-7, E5-1/E5-2, E6-1, E8-1 → erste echte Duellfahrt.
-5. **Sprint 4:** Rest der Must/Should aus R1 (inkl. E4-10, E4-11, E16).
+5. **Sprint 4:** Rest der Must/Should aus R1 (inkl. E4-10, E4-11, E16, E27-1 bis E27-5 und E27-9).
    E23-2 (Vorbelastung mitschreiben) läuft schon hier mit, weil es klein ist und spätere Wertungsklassen auf alte Fahrten angewiesen sind.
 6. **Vor dem Feldtest:** E14-0 (Hintergrund-GPS, native Hülle ja oder nein).
    **Feldtest:** E22-1 bis E22-6 vor dem Start, dann 2–3 Wochen mit 5–10 Fahrern; E22-7 bis E22-9 nach Bedarf.
-7. **R2:** zuerst E12 (Konto, Onboarding, Radklasse) und E21-1/E21-2 (Plausibilität), weil fremde Ghosts erst mit beidem fair sind. Dann E11-6 (Privatzonen) vor allem anderen, was teilt, E25 (Gruppen), E26 (Sicherheit) vor E23, dann E11, E17, E23 (Abschnitts-Duelle mit fremden Ghosts), E24, E18.
+7. **R2:** zuerst E12 (Konto, Onboarding, Radklasse) und E21-1/E21-2 (Plausibilität), weil fremde Ghosts erst mit beidem fair sind. Dann E11-6 (Privatzonen) vor allem anderen, was teilt, E25 (Gruppen), E26 (Sicherheit) vor E23, dann E11, E17, E23 (Abschnitts-Duelle mit fremden Ghosts) zusammen mit E27-6 bis E27-8, E24, E18.
 8. **R3:** E19 und E20 zusammen, dazu E21-3 bis E21-5.
