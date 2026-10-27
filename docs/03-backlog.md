@@ -28,6 +28,11 @@ Details zu Community, Gamification, Radklassen, Anti-Cheat und Strava: [05-commu
 | 9 | Registrierung und Login per Google, Apple und manuell | R2 | E12 |
 | 10 | Adminbereich mit Datendashboard, in der Testphase mit den Strecken der Tester (27.10. abends) | Feldtest, ausgebaut in R2 | E22 |
 | 11 | Teilstrecken fair werten: fliegender Start, Vorbelastung, Abschnitte für alle, Strecken nur komplett | R1 (Vorbelastung mitschreiben), R2 (Abschnitts-Duelle), R3 (Kronen, Eroberung) | E23, E19 |
+| 12 | Hintergrund-GPS: native Hülle (Capacitor) vor dem Feldtest prüfen | Feldtest | E14-0 |
+| 13 | Import von Garmin und Wahoo, später Garmin-Datenfeld mit Ghost-Abstand | R2 (Import), Später (Datenfeld) | E24 |
+| 14 | Kaltstart: wenige Klassen, Gruppen per Einladungslink | R2 | E25 |
+| 15 | Sicherheit: keine Wettkampf-Abschnitte auf Abfahrten und Stadtstücken mit vielen Kreuzungen, Meldefunktion, Hinweise | R2 (vor fremden Abschnitts-Duellen) | E26, E19-6 |
+| 16 | Privatzonen standardmäßig an vor jedem Teilen | R2 (vor E11) | E11-6 |
 
 Prioritäten: **M** = Must (ohne geht der Release nicht), **S** = Should, **C** = Could.
 Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
@@ -165,6 +170,11 @@ Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
 
 Damit der Feldtest mit 5–10 Fahrern etwas bringt, müssen ihre Fahrten beim Team ankommen. Bisher bleiben Fahrten nur auf dem Handy; Konten gibt es schon (E12-1). Der Upload hier ist der erste Schritt zur Cloud-Sicherung (E12-2) und zum Teilen (E11).
 
+### Vorab: Hintergrund-GPS klären
+| ID | Story | Prio | Größe |
+|---|---|---|---|
+| E14-0 | Spike vor dem Feldtest: Prüfen, ob eine native Hülle (Capacitor) mit Hintergrund-Standort auf iPhone und Android lange Fahrten mit gesperrtem oder gedimmtem Display zuverlässig aufzeichnet, und was sie an Aufwand kostet (Apple-Developer-Konto, Store-Prüfung, TestFlight). Ergebnis: Feldtest als PWA oder schon als Test-App. | M | M |
+
 ### Epic E22: Adminbereich und Datendashboard
 | ID | Story | Prio | Größe |
 |---|---|---|---|
@@ -192,7 +202,7 @@ Damit der Feldtest mit 5–10 Fahrern etwas bringt, müssen ihre Fahrten beim Te
 | E11-3 | Als Empfänger will ich gegen den geteilten Ghost fahren. | M | S |
 | E11-4 | Als Empfänger will ich nach der Fahrt mit meiner Fahrt antworten („Re:“), sodass der Absender meinen Ghost bekommt. | M | M |
 | E11-5 | Als Fahrer will ich eine Benachrichtigung, wenn jemand meinen Ghost geschlagen hat. | S | M |
-| E11-6 | Als Fahrer will ich, dass Start und Ende geteilter Fahrten gekürzt werden, damit mein Wohnort nicht sichtbar ist. | M | S |
+| E11-6 | Als Fahrer will ich **Privatzonen**, die **standardmäßig an** sind: Start und Ende jeder geteilten oder öffentlichen Fahrt werden um einen zufälligen Radius (z. B. 300–800 m) gekürzt, und ich kann feste Zonen (Zuhause, Arbeit) anlegen. Muss fertig sein, bevor irgendetwas geteilt wird. | M | M |
 
 ### Epic E12: Konto und Backend
 | ID | Story | Prio | Größe |
@@ -233,6 +243,29 @@ Hintergrund und Regeln: [Teilstrecken fair werten](05-community-und-gamification
 | E23-5 | Als Plattform will ich Abschnitte auf 1–10 km begrenzen und lange Strecken an natürlichen Grenzen teilen. | M | M |
 | E23-6 | Optional: kleiner Zeitbonus je Vor-Kilometer (z. B. 0,1 % je 10 km, höchstens 3 %), erst nach Auswertung echter Daten aus dem Feldtest. | C | S |
 
+### Epic E24: Radcomputer (Garmin, Wahoo)
+| ID | Story | Prio | Größe |
+|---|---|---|---|
+| E24-1 | Als Fahrer mit Radcomputer will ich FIT- oder GPX-Dateien hochladen und als Fahrt und Ghost nutzen (Auto-Pause und Bewegungszeit rechnet re:chase selbst). | M | M |
+| E24-2 | Als Fahrer will ich mein Garmin- oder Wahoo-Konto verbinden, damit neue Fahrten automatisch ankommen (Garmin Connect Developer Program und Wahoo Cloud API, beide mit Freigabe durch den Anbieter). | S | L |
+| E24-3 | Als Fahrer will ich eine re:chase-Strecke als Kurs auf meinen Radcomputer schicken. | C | M |
+
+### Epic E25: Kaltstart (genug Gegner)
+| ID | Story | Prio | Größe |
+|---|---|---|---|
+| E25-1 | Als Plattform will ich mit **wenigen Klassen** starten: nur Muskelkraft und E-Bike; Wertungsklassen nach Vorbelastung (E23-4) erst aktivieren, wenn eine Strecke genug Fahrten hat (z. B. ab 20 Chasern). | M | S |
+| E25-2 | Als Chaser will ich Freunde, meinen Radtreff oder Verein per **Einladungslink** in eine **Gruppe** holen, mit eigener Bestenliste auf unseren Strecken. | M | M |
+| E25-3 | Als Gruppe will ich unsere Strecken gemeinsam sehen und gegeneinander chasen, auch wenn die Strecke öffentlich noch kaum gefahren wird. | S | M |
+
+### Epic E26: Sicherheit im Straßenverkehr
+| ID | Story | Prio | Größe |
+|---|---|---|---|
+| E26-1 | Als Plattform will ich, dass **Abfahrten** (z. B. mehr als 4 % Gefälle über 300 m) automatisch **keine Wettkampf-Abschnitte** werden. | M | M |
+| E26-2 | Als Plattform will ich, dass Stadtstücke mit vielen Kreuzungen, Ampeln oder Fußgängerzonen (aus OpenStreetMap) **neutral** sind: kein Abschnitts-Duell, keine Krone, keine Punkte. | M | M |
+| E26-3 | Als Chaser will ich einen Abschnitt als **gefährlich melden** können; ab wenigen Meldungen wird er vorläufig neutral, ein Admin entscheidet endgültig. | M | S |
+| E26-4 | Als neuer Nutzer will ich einen kurzen **Sicherheitshinweis** (StVO gilt, nie aufs Display schauen müssen) und Nutzungsbedingungen mit Haftungshinweis bestätigen. Vor R3 rechtlich prüfen lassen. | M | S |
+| E26-5 | Als Plattform will ich keine Töne oder Einblendungen, die zum Sprint auffordern, kurz vor Kreuzungen und Ampeln. | S | M |
+
 ### Epic E21: Anti-Cheat
 | ID | Story | Prio | Größe |
 |---|---|---|---|
@@ -254,7 +287,7 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 | E19-3 | Als Chaser will ich einen Besitzer gezielt **herausfordern**; er hat 7 Tage zum Verteidigen. | S | M |
 | E19-4 | Als Chaser will ich auf der Karte **Gebiete** (Hexagone) in der Farbe ihres Besitzers sehen; ein Gebiet gehört dem, der dort die meisten Strecken hält. | S | L |
 | E19-5 | Als Plattform will ich, dass Strecken ohne Verteidigung nach 6 Wochen „offen“ werden. | C | S |
-| E19-6 | Sicherheit: Abfahrten und als gefährlich markierte Abschnitte zählen nicht für Besitz und Rangpunkte. | M | M |
+| E19-6 | Sicherheit: Abfahrten und als gefährlich markierte Abschnitte zählen nicht für Besitz und Rangpunkte (gleiche Regeln wie E26). | M | M |
 
 ### Epic E20: Ränge, Badges und Punkte
 | ID | Story | Prio | Größe |
@@ -288,6 +321,9 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 - Audio-Ducking (Musik leiser statt unterbrechen), Barometer für Höhe.
 - App-Store-Präsenz, Widgets / Live Activities.
 
+### Garmin-Datenfeld (Fortsetzung E24)
+- Connect-IQ-Datenfeld für Garmin-Radcomputer, das den Ghost-Abstand live anzeigt; eventuell später auch für Wahoo.
+
 ### Epic E15: Weitere Ideen
 - Animierte Rennfahrer-Figur und Straßenverlauf passend zur echten Kurve.
 - Sprachansagen.
@@ -305,6 +341,7 @@ Stand 27.10.: Die Prüfung läuft in der App nach jeder Fahrt. Auffällige Fahrt
 4. **Sprint 3:** E4-4 bis E4-7, E5-1/E5-2, E6-1, E8-1 → erste echte Duellfahrt.
 5. **Sprint 4:** Rest der Must/Should aus R1 (inkl. E4-10, E4-11, E16).
    E23-2 (Vorbelastung mitschreiben) läuft schon hier mit, weil es klein ist und spätere Wertungsklassen auf alte Fahrten angewiesen sind.
-6. **Feldtest:** E22-1 bis E22-6 vor dem Start, dann 2–3 Wochen mit 5–10 Fahrern; E22-7 bis E22-9 nach Bedarf.
-7. **R2:** zuerst E12 (Konto, Onboarding, Radklasse) und E21-1/E21-2 (Plausibilität), weil fremde Ghosts erst mit beidem fair sind. Dann E11, E17, E23 (Abschnitts-Duelle mit fremden Ghosts), E18.
+6. **Vor dem Feldtest:** E14-0 (Hintergrund-GPS, native Hülle ja oder nein).
+   **Feldtest:** E22-1 bis E22-6 vor dem Start, dann 2–3 Wochen mit 5–10 Fahrern; E22-7 bis E22-9 nach Bedarf.
+7. **R2:** zuerst E12 (Konto, Onboarding, Radklasse) und E21-1/E21-2 (Plausibilität), weil fremde Ghosts erst mit beidem fair sind. Dann E11-6 (Privatzonen) vor allem anderen, was teilt, E25 (Gruppen), E26 (Sicherheit) vor E23, dann E11, E17, E23 (Abschnitts-Duelle mit fremden Ghosts), E24, E18.
 8. **R3:** E19 und E20 zusammen, dazu E21-3 bis E21-5.
