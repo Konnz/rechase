@@ -11,6 +11,7 @@ RUN npm run build
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \
+    DATA_DIR=/data \
     PORT=3000
 # Commit, den die App anzeigen kann (setzt die GitHub Action).
 ARG APP_VERSION=dev

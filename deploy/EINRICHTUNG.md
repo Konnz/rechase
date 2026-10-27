@@ -99,3 +99,21 @@ PR mergen oder in GitHub unter Actions → Deploy → „Run workflow“ starten
 ```bash
 curl -s https://rechase.konnerths.de/healthz
 ```
+
+## 7. Anmeldung mit Google (optional)
+
+Ohne diese Werte bietet die App nur E-Mail und Passwort an. Konten liegen in `/data/rechase.db` im Volume `rechase_data`.
+
+1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Projekt anlegen → „OAuth-Zustimmungsbildschirm“ (extern, App-Name re:chase) → „Anmeldedaten“ → „OAuth-Client-ID“ vom Typ **Webanwendung**.
+2. Autorisierte Weiterleitungs-URI: `https://rechase.konnerths.de/api/auth/google/callback`
+3. Client-ID und Secret eintragen, `<ID>` und `<SECRET>` ersetzen:
+
+```bash
+printf 'GOOGLE_CLIENT_ID=<ID>\nGOOGLE_CLIENT_SECRET=<SECRET>\nPUBLIC_URL=https://rechase.konnerths.de\n' | sudo -u rechase tee -a /opt/rechase/.env >/dev/null
+```
+
+```bash
+cd /opt/rechase && sudo -u rechase docker compose up -d app
+```
+
+Im Log steht danach „Google-Anmeldung aktiv“, und in der App erscheint der Google-Knopf.

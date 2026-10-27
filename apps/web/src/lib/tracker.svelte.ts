@@ -1,4 +1,4 @@
-import { MotionTracker, type Cue, type Geoid, type MotionSample, type TrackPoint } from '@rechase/core';
+import { MotionTracker, type BikeType, type Cue, type Geoid, type MotionSample, type TrackPoint } from '@rechase/core';
 import { altitudeIsEllipsoidal, loadGeoid } from './altitude.ts';
 import { saveRide, type StoredRide } from './db.ts';
 import type { Duel } from './duel.svelte.ts';
@@ -34,6 +34,8 @@ export interface StartOptions {
   source?: PositionSource;
   /** Simulierte Fahrten werden nicht gespeichert */
   persist?: boolean;
+  /** Gefahrenes Rad, wird mit der Fahrt gespeichert */
+  bike?: BikeType | null;
 }
 
 /**
@@ -67,7 +69,7 @@ export class RideRecorder {
   /** Rechnet die Höhe vom Ellipsoid auf den Meeresspiegel um, null wenn nicht nötig oder nicht möglich */
   private geoid: Geoid | null = null;
 
-  async start({ duel, source, persist = true }: StartOptions = {}) {
+  async start({ duel, source, persist = true, bike }: StartOptions = {}) {
     if (!source && !('geolocation' in navigator)) {
       this.fail('Dieses Gerät bietet keine Standortbestimmung.');
       return;
@@ -96,6 +98,7 @@ export class RideRecorder {
       userAgent: navigator.userAgent,
       ...(source ? {} : { altitudeRef: this.geoid || !altitudeIsEllipsoidal() ? 'msl' : 'ellipsoid' }),
       ...(duel ? { routeId: duel.stored.id } : {}),
+      ...(bike ? { bike } : {}),
     };
 
     await this.acquireWakeLock();

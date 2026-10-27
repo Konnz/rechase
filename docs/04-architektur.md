@@ -16,12 +16,12 @@ Handy (PWA)                                VPS 85.190.98.62
 └──────────────────────────┘               │  rechase-app   Node-Server, Port 3000    │
           │                                │     /          → PWA (statisch)          │
           │ Kartenkacheln                  │     /healthz   → Health-Check            │
-          ▼                                │     /api/*     → API (ab R2)             │
-   OpenFreeMap (extern, anfangs)           │  rechase-postgres  PostGIS (ab R2)       │
+          ▼                                │     /api/*     → API: Konten (ab R2)     │
+   OpenFreeMap (extern, anfangs)           │     /data      → SQLite (Volume)         │
                                            └──────────────────────────────────────────┘
 ```
 
-Ein einziges App-Image enthält die gebaute PWA und den Node-Server. Ab R2 kommt die API in denselben Server, Postgres als zweiter Service im selben Stack (ohne öffentlichen Port).
+Ein einziges App-Image enthält die gebaute PWA und den Node-Server. Die API läuft im selben Server. Konten und Sitzungen liegen in SQLite (`node:sqlite`, eingebaut in Node 22) in der Datei `/data/rechase.db` im Volume `data`; kein eigener Datenbank-Container. Postgres mit PostGIS kommt als zweiter Service dazu, wenn Strecken und Ghosts geteilt werden und Geo-Abfragen nötig sind. Das SQL ist dafür bewusst schlicht gehalten.
 
 ## Repository-Struktur (Monorepo, pnpm workspaces)
 
@@ -47,16 +47,18 @@ docs/         Konzept, Machbarkeit, Backlog, Architektur
 | App-Container (PWA + Node-Server) | ✅ | ✅ | ✅ |
 | Kartenkacheln | OpenFreeMap extern | OpenFreeMap extern | ggf. PMTiles-Extrakt (DACH) auf dem VPS |
 | API-Routen im selben Server | – | ✅ | ✅ |
-| PostgreSQL + PostGIS | – | ✅ | ✅ (Streckenerkennung, Leaderboards) |
-| Auth | – | Magic Link per E-Mail (SMTP-Dienst nötig) | + Apple/Google-Login |
+| Datenbank | – | SQLite für Konten, Postgres + PostGIS sobald geteilt wird | ✅ (Streckenerkennung, Leaderboards) |
+| Auth | – | E-Mail und Passwort, Google (OpenID Connect) | + Apple, Passwort vergessen per E-Mail (SMTP nötig) |
 | Höhenmodell | – (live GPS geglättet) | Copernicus DEM 30 m für die Region, im App-Container oder als eigener Dienst (nach Rücksprache) | ✅ |
 | Push | – | Web Push (VAPID) | + native Push |
 
 ## Datenmodell (ab R2, vereinfacht)
 
-- `users` (id, name, email, created_at)
+- `users` (id, email, name = Chaser-Name, bike = Standardrad, created_at, onboarded_at) ✅
+- `identities` (provider, subject, user_id, secret): Anmeldewege eines Kontos, z. B. Passwort und Google; später Apple, Strava ✅
+- `sessions` (token_hash, user_id, expires_at) ✅
 - `routes` (id, owner_id, name, geom `LineString`, length_m, elevation_profile)
-- `rides` (id, user_id, route_id, started_at, moving_time_s, total_time_s, distance_m, track `LineStringZM` oder komprimierte Punktliste, privacy_trim_m)
+- `rides` (id, user_id, route_id, bike, started_at, moving_time_s, total_time_s, distance_m, track `LineStringZM` oder komprimierte Punktliste, privacy_trim_m)
 - `ghosts` (id, ride_id, share_token, created_at, expires_at)
 - `replies` (id, ghost_id, ride_id) – die „Re:“-Antworten
 
