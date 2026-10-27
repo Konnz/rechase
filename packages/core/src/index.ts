@@ -5,3 +5,5 @@ export * from './ghost.ts';
 export * from './route.ts';
 export * from './stats.ts';
 export * from './geoid.ts';
+export * from './sections.ts';
+export * from './cues.ts';

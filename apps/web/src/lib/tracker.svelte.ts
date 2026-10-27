@@ -1,4 +1,4 @@
-import { MotionTracker, type Geoid, type MotionSample, type TrackPoint } from '@rechase/core';
+import { MotionTracker, type Cue, type Geoid, type MotionSample, type TrackPoint } from '@rechase/core';
 import { altitudeIsEllipsoidal, loadGeoid } from './altitude.ts';
 import { saveRide, type StoredRide } from './db.ts';
 import type { Duel } from './duel.svelte.ts';
@@ -54,6 +54,8 @@ export class RideRecorder {
   track = $state.raw<LatLon[]>([]);
   duel = $state.raw<Duel | null>(null);
   simulated = $state(false);
+  /** Bekommt jedes Ereignis der Fahrt, auf das ein Ton folgt */
+  oncue: ((c: Cue) => void) | null = null;
 
   private motion = new MotionTracker();
   private ride: StoredRide | null = null;
@@ -61,6 +63,7 @@ export class RideRecorder {
   private persistRide = true;
   private lock: WakeLockSentinel | null = null;
   private lastSave = 0;
+  private wasMoving: boolean | null = null;
   /** Rechnet die Höhe vom Ellipsoid auf den Meeresspiegel um, null wenn nicht nötig oder nicht möglich */
   private geoid: Geoid | null = null;
 
@@ -79,6 +82,7 @@ export class RideRecorder {
     this.simulated = !!source;
     this.persistRide = persist;
     this.hiddenCount = this.gaps = this.rejected = this.points = 0;
+    this.wasMoving = null;
     // Simulierte Fahrten spielen schon umgerechnete Höhen ab
     this.geoid = !source && altitudeIsEllipsoidal() ? await loadGeoid() : null;
     this.ride = {
@@ -139,7 +143,10 @@ export class RideRecorder {
       ride.samples.push(sample);
       this.current = sample;
       if (sample.moving) this.track = [...this.track, { lat: sample.lat, lon: sample.lon }];
-      this.duel?.push(sample);
+      const cues = this.duel?.push(sample) ?? [];
+      if (this.wasMoving != null && sample.moving !== this.wasMoving) cues.unshift({ kind: 'pause', moving: sample.moving });
+      this.wasMoving = sample.moving;
+      for (const c of cues) this.oncue?.(c);
     }
     this.gaps = ride.gaps = this.motion.gaps;
     this.rejected = ride.rejected = this.motion.rejected;

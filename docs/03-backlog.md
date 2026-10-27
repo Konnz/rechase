@@ -106,16 +106,16 @@ Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
 ### Epic E6: Tonsignale
 | ID | Story | Prio | Größe |
 |---|---|---|---|
-| E6-1 | Als Fahrer will ich einen kurzen Ton, wenn ich den Ghost überhole oder er mich überholt. | M | S |
-| E6-2 | Als Fahrer will ich einen Ton, wenn der Abstand unter eine Schwelle schrumpft (z. B. < 5 s) oder sich deutlich ändert. | S | S |
-| E6-3 | Als Fahrer will ich Töne in den Einstellungen ein- und ausschalten. | M | S |
-| E6-4 | Als Fahrer will ich eine einheitliche Klangsprache: steigend beim Überholen, fallend beim Überholtwerden, schneller werdendes Ticken unter 5 s Abstand, Glockenton je Kilometer in Führung, Countdown auf den letzten 500 m. | S | M |
-| E6-5 | Als Fahrer will ich einzelne Klänge abschalten und die Lautstärke regeln können. | C | S |
+| E6-1 | ✅ Als Fahrer will ich einen kurzen Ton, wenn ich den Ghost überhole oder er mich überholt. | M | S |
+| E6-2 | ✅ Als Fahrer will ich einen Ton, wenn der Abstand unter eine Schwelle schrumpft (z. B. < 5 s) oder sich deutlich ändert. | S | S |
+| E6-3 | ✅ Als Fahrer will ich Töne in den Einstellungen ein- und ausschalten. | M | S |
+| E6-4 | ✅ Als Fahrer will ich eine einheitliche Klangsprache: steigend beim Überholen, fallend beim Überholtwerden, schneller werdendes Ticken unter 5 s Abstand, Glockenton je Kilometer in Führung, Countdown auf den letzten 500 m. | S | M |
+| E6-5 | ✅ Als Fahrer will ich einzelne Klänge abschalten und die Lautstärke regeln können. | C | S |
 
 ### Epic E16: Kleine Belohnungen (solo)
 | ID | Story | Prio | Größe |
 |---|---|---|---|
-| E16-1 | Als Fahrer will ich auf Teilstücken meiner Strecke **Abschnitts-PRs** erzielen und dafür während der Fahrt einen kurzen Ton und ein „+20“ sehen. | S | M |
+| E16-1 | ✅ Als Fahrer will ich auf Teilstücken meiner Strecke **Abschnitts-PRs** erzielen und dafür während der Fahrt einen kurzen Ton und ein „+20“ sehen. Umgesetzt mit automatischen Abschnitten von etwa 1 km (höchstens 10 je Strecke); gewertet nur, wer den Abschnitt nicht verlassen hat. | S | M |
 | E16-2 | Als Fahrer will ich vor der Fahrt bis zu drei **Fahrtziele** vorgeschlagen bekommen (z. B. negativer Split, nie mehr als 10 s zurück) und in der Zusammenfassung sehen, welche ich erreicht habe. | S | M |
 | E16-3 | Als Fahrer will ich für jede Fahrt **Punkte** bekommen (Kilometer, Ghost geschlagen, Abschnitts-PRs, Ziele) und eine Wochenserie aufbauen. Die Punkte bleiben erhalten, wenn ich später ein Konto anlege. | C | M |
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Cue } from '@rechase/core';
   import { onMount } from 'svelte';
   import {
     deleteRide,
@@ -21,15 +22,19 @@
     createRoute,
     evaluateRide,
     loadOpponent,
+    sectionBestsFor,
     type GhostMode,
     type RideResult,
   } from './lib/routes.ts';
   import { replaySource } from './lib/sim.ts';
   import { PositionPreview } from './lib/preview.svelte.ts';
+  import { SOUND_GROUPS, soundPrefs } from './lib/sound/prefs.svelte.ts';
+  import { sounds } from './lib/sound/sounds.ts';
   import Summary from './lib/summary/Summary.svelte';
   import { RideRecorder } from './lib/tracker.svelte.ts';
 
   const rec = new RideRecorder();
+  rec.oncue = (c) => sounds.play(c);
   // raw: IndexedDB kann keine $state-Proxys speichern
   let rides = $state.raw<StoredRide[]>([]);
   let routes = $state.raw<StoredRoute[]>([]);
@@ -63,7 +68,12 @@
     { id: 'average', label: `Ø ${AVERAGE_OF} Fahrten` },
   ];
   /** Abschluss-Screen einer Fahrt, direkt nach dem Beenden oder aus der Liste */
-  let summary = $state.raw<{ ride: StoredRide; simulated: boolean; result: typeof result } | null>(null);
+  let summary = $state.raw<{
+    ride: StoredRide;
+    simulated: boolean;
+    result: typeof result;
+    sectionPrs?: number;
+  } | null>(null);
 
   const active = $derived(rec.status === 'starting' || rec.status === 'recording');
   const cur = $derived(rec.current);
@@ -99,13 +109,14 @@
       result = { route: d.stored, time: d.time, previousBest: d.opponent.time, newBest: false };
     }
     await refresh();
-    if (ride?.samples.length) summary = { ride, simulated: rec.simulated, result };
+    if (ride?.samples.length) summary = { ride, simulated: rec.simulated, result, sectionPrs: d?.sectionPrs.length };
   }
 
   async function toggle() {
     if (active) {
       await stop();
     } else {
+      sounds.unlock();
       void requestPersistence();
       result = null;
       await rec.start();
@@ -113,6 +124,8 @@
   }
 
   async function startDuel(route: StoredRoute, simulate = false) {
+    // Noch im Klick, sonst bleibt der Ton auf iOS stumm
+    sounds.unlock();
     result = null;
     notice = null;
     const opponent = await loadOpponent(route, ghostMode, rides);
@@ -121,7 +134,9 @@
       return;
     }
     void requestPersistence();
-    const opts: Parameters<RideRecorder['start']>[0] = { duel: new Duel(route, opponent) };
+    const opts: Parameters<RideRecorder['start']>[0] = {
+      duel: new Duel(route, opponent, sectionBestsFor(route, rides)),
+    };
     if (simulate) {
       const best = rides.find((r) => r.id === route.bestRideId);
       if (!best) return;
@@ -161,6 +176,32 @@
   const fileName = (r: StoredRide, ext: string) =>
     `rechase-${new Date(r.startedAt).toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${ext}`;
 
+  /** Beispiel je Klanggruppe zum Probehören */
+  const SAMPLES: Record<(typeof SOUND_GROUPS)[number]['id'], Cue[]> = {
+    overtake: [{ kind: 'overtake' }, { kind: 'overtaken' }],
+    close: [],
+    km: [{ kind: 'km-lead', km: 1 }],
+    countdown: [500, 300, 100].map((meters) => ({ kind: 'countdown', meters })),
+    section: [
+      { kind: 'section', index: 0, time: 0, best: 0, pr: false },
+      { kind: 'section', index: 0, time: 0, best: 0, pr: true },
+    ],
+    finish: [{ kind: 'finish', won: true }],
+    pause: [{ kind: 'pause', moving: false }, { kind: 'pause', moving: true }],
+  };
+
+  function testSound(g: keyof typeof SAMPLES) {
+    sounds.unlock();
+    // Nach dem Freischalten läuft der Audio-Kontext erst einen Moment später
+    setTimeout(() => {
+      if (g === 'close') {
+        sounds.setTicking(600);
+        setTimeout(() => sounds.setTicking(300), 1500);
+        setTimeout(() => sounds.setTicking(null), 3000);
+      } else for (const c of SAMPLES[g]) sounds.play(c, { force: true });
+    }, 50);
+  }
+
   onMount(refresh);
 </script>
 
@@ -172,6 +213,7 @@
       (s.result && !('incomplete' in s.result) ? s.result.route : null)}
     result={s.result}
     simulated={s.simulated}
+    sectionPrs={s.sectionPrs}
     onsave={remember}
     onclose={() => (summary = null)}
   />
@@ -376,6 +418,40 @@
       </ul>
     </section>
   {/if}
+
+  <details class="sounds">
+    <summary>Töne während der Fahrt · {soundPrefs.enabled ? 'an' : 'aus'}</summary>
+    <label class="row start">
+      <input type="checkbox" checked={soundPrefs.enabled} onchange={(e) => (soundPrefs.enabled = e.currentTarget.checked)} />
+      Töne an
+    </label>
+    <label class="row">
+      Lautstärke
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={soundPrefs.volume}
+        disabled={!soundPrefs.enabled}
+        oninput={(e) => (soundPrefs.volume = Number(e.currentTarget.value))}
+      />
+    </label>
+    {#each SOUND_GROUPS as grp (grp.id)}
+      <div class="row">
+        <label>
+          <input
+            type="checkbox"
+            checked={soundPrefs.isOn(grp.id)}
+            disabled={!soundPrefs.enabled}
+            onchange={(e) => soundPrefs.toggle(grp.id, e.currentTarget.checked)}
+          />
+          {grp.label}
+        </label>
+        <button class="link" onclick={() => testSound(grp.id)}>Anhören</button>
+      </div>
+    {/each}
+  </details>
 </main>
 {/if}
 
@@ -646,6 +722,46 @@
     border-color: var(--ghost);
     background: color-mix(in srgb, var(--ghost) 16%, transparent);
     color: var(--ghost);
+  }
+  .sounds {
+    margin-top: 8px;
+    padding: 4px 16px 10px;
+    border-radius: 16px;
+    background: var(--surface);
+  }
+  .sounds summary {
+    padding: 10px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .sounds .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 40px;
+    font-size: 14px;
+  }
+  .sounds .start {
+    justify-content: flex-start;
+    font-weight: 600;
+  }
+  .sounds label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sounds input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--you);
+  }
+  .sounds input[type='range'] {
+    flex: 1;
+    max-width: 200px;
+    accent-color: var(--you);
   }
   .rides h2 {
     margin: 12px 8px 6px;

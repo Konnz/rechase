@@ -3,6 +3,8 @@
   import { fmtDuration, fmtGapMeters, fmtGapSeconds, fmtInt, fmtKm, fmtKmh } from '../format.ts';
   import LiveMap from '../map/LiveMap.svelte';
   import { mapPrefs } from '../map/prefs.svelte.ts';
+  import { soundPrefs } from '../sound/prefs.svelte.ts';
+  import { sounds } from '../sound/sounds.ts';
   import type { RideRecorder } from '../tracker.svelte.ts';
   import Figure, { type FigureVariant } from './Figure.svelte';
   import {
@@ -76,6 +78,27 @@
     duel?.phase === 'finished' ? (duel.time - duel.opponent.time) / 1000 : null,
   );
   const tagW = (text: string) => text.length * 6.6 + 16;
+
+  // Ticken, solange man knapp hinter dem Ghost liegt; endet mit der Ansicht
+  $effect(() => {
+    sounds.setTicking(duel?.tickMs ?? null);
+    return () => sounds.setTicking(null);
+  });
+
+  /** Kurze „+20“-Einblendung nach einem Abschnitts-PR */
+  let pr = $state.raw<{ index: number; delta: number } | null>(null);
+  $effect(() => {
+    const last = duel?.sectionPrs.at(-1);
+    if (!last || last.best == null) return;
+    pr = { index: last.index, delta: (last.time - last.best) / 1000 };
+    const t = setTimeout(() => (pr = null), 1500);
+    return () => clearTimeout(t);
+  });
+
+  function toggleSound() {
+    sounds.unlock();
+    soundPrefs.enabled = !soundPrefs.enabled;
+  }
 </script>
 
 <div class="screen">
@@ -134,6 +157,12 @@
       {#if !swapped}
         {#if racing && g?.hidden && ahead < 0}
           <span class="chip behind">{short} {fmtInt(-ahead)} m hinter dir</span>
+        {/if}
+        {#if pr}
+          <div class="prpop" role="status">
+            <span class="plus">+20</span>
+            <span class="prtext">Abschnitt {pr.index + 1} · PR −{fmtGapSeconds(pr.delta)}</span>
+          </div>
         {/if}
         {#if racing && duel && !duel.onRoute}
           <span class="chip offroute" role="status">Strecke verlassen · das Duell läuft weiter, sobald du zurück bist</span>
@@ -246,7 +275,24 @@
     {#if rec.error}
       <p class="error" role="alert">{rec.error}</p>
     {/if}
-    <button class="stop" onclick={onstop}>Fahrt beenden</button>
+    <div class="buttons">
+      <button
+        class="sound"
+        aria-label={soundPrefs.enabled ? 'Töne aus' : 'Töne an'}
+        aria-pressed={soundPrefs.enabled}
+        onclick={toggleSound}
+      >
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"></path>
+          {#if soundPrefs.enabled}
+            <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"></path>
+          {:else}
+            <path d="m16 9 6 6m0-6-6 6"></path>
+          {/if}
+        </svg>
+      </button>
+      <button class="stop" onclick={onstop}>Fahrt beenden</button>
+    </div>
   </section>
 </div>
 
@@ -515,7 +561,70 @@
     background: #2a1414;
     color: #ffb4ae;
   }
+  .buttons {
+    display: flex;
+    gap: 8px;
+  }
+  .sound {
+    flex: 0 0 52px;
+    height: 52px;
+    border-radius: 14px;
+    border: 0;
+    background: var(--surface);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .sound[aria-pressed='false'] {
+    color: var(--muted);
+  }
+  .prpop {
+    position: absolute;
+    right: 12px;
+    top: 42%;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding: 6px 12px 8px;
+    border-radius: 12px;
+    background: rgba(13, 15, 18, 0.8);
+    animation: pop 1.5s ease-out forwards;
+    pointer-events: none;
+  }
+  .plus {
+    font-family: var(--font-num);
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--you);
+  }
+  .prtext {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  @keyframes pop {
+    0% {
+      opacity: 0;
+      transform: translateY(8px) scale(0.9);
+    }
+    12% {
+      opacity: 1;
+      transform: none;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  }
   .stop {
+    flex: 1;
     height: 52px;
     border-radius: 14px;
     background: var(--surface);
