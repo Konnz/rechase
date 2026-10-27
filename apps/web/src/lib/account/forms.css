@@ -1,5 +1,5 @@
 /* Gemeinsame Optik der Konto-Seiten (Anmelden, Onboarding, Profil) */
-.screen {
+.acct {
   max-width: 480px;
   min-height: 100vh;
   margin: 0 auto;
@@ -8,29 +8,29 @@
   flex-direction: column;
   gap: 14px;
 }
-.screen h1 {
+.acct h1 {
   margin: 8px 0 0;
   font-size: 28px;
   font-weight: 700;
 }
-.screen h2 {
+.acct h2 {
   margin: 10px 0 0;
   font-size: 15px;
   font-weight: 600;
   color: var(--muted);
 }
-.screen p {
+.acct p {
   margin: 0;
   color: var(--muted);
   font-size: 15px;
   line-height: 1.4;
 }
-.screen form {
+.acct form {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.screen label {
+.acct label {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -38,7 +38,7 @@
   font-weight: 600;
   color: var(--muted);
 }
-.screen input {
+.acct input {
   height: 52px;
   padding: 0 14px;
   border-radius: 14px;
@@ -48,33 +48,33 @@
   font: inherit;
   font-size: 17px;
 }
-.screen input:focus {
+.acct input:focus {
   outline: none;
   border-color: var(--you);
 }
-.screen .primary,
-.screen .secondary {
+.acct .primary,
+.acct .secondary {
   height: 56px;
   border-radius: 14px;
   font-size: 17px;
   font-weight: 700;
   cursor: pointer;
 }
-.screen .primary {
+.acct .primary {
   border: 0;
   background: var(--you);
   color: var(--bg);
 }
-.screen .secondary {
+.acct .secondary {
   border: 1.5px solid var(--line);
   background: var(--surface);
   color: var(--text);
 }
-.screen button:disabled {
+.acct button:disabled {
   opacity: 0.5;
   cursor: default;
 }
-.screen .textlink {
+.acct .textlink {
   align-self: center;
   padding: 8px;
   border: 0;
@@ -86,7 +86,7 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
-.screen .back {
+.acct .back {
   align-self: flex-start;
   padding: 6px 0;
   border: 0;
@@ -95,22 +95,22 @@
   font-size: 15px;
   cursor: pointer;
 }
-.screen .error {
+.acct .error {
   margin: 0;
   padding: 10px 14px;
   border-radius: 14px;
   background: #2a1414;
   color: #ffb4ae;
 }
-.screen .or {
+.acct .or {
   display: flex;
   align-items: center;
   gap: 10px;
   color: var(--muted);
   font-size: 13px;
 }
-.screen .or::before,
-.screen .or::after {
+.acct .or::before,
+.acct .or::after {
   content: '';
   flex: 1;
   height: 1px;
