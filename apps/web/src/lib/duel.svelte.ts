@@ -1,4 +1,5 @@
 import {
+  ChallengeAbandon,
   DuelCues,
   FINISH_TOLERANCE_M,
   GapTrend,
@@ -23,7 +24,8 @@ import {
 import type { StoredRoute } from './db.ts';
 import { toRoute, type Opponent } from './routes.ts';
 
-type Phase = 'approach' | 'racing' | 'finished';
+/** abandoned: unterwegs angenommenes Duell, Start nicht erreicht oder Strecke verlassen; endet still */
+type Phase = 'approach' | 'racing' | 'finished' | 'abandoned';
 
 /**
  * Live-Duell gegen den Ghost einer Strecke. Bekommt jeden angenommenen Punkt der Fahrt
@@ -59,9 +61,19 @@ export class Duel {
   private trendCalc = new GapTrend();
   private cues = new DuelCues();
   private sectionTimer: SectionTimer;
+  /** Nur bei Duellen, die unterwegs angeboten wurden (E27) */
+  private abandon: ChallengeAbandon | null;
 
-  /** sectionBests: bisher beste Zeit je Abschnitt, siehe sectionBestsFor */
-  constructor(stored: StoredRoute, opponent: Opponent, sectionBests: readonly (number | null)[] = []) {
+  /**
+   * sectionBests: bisher beste Zeit je Abschnitt, siehe sectionBestsFor.
+   * challenge: unterwegs angeboten; verlässt man die Strecke, endet das Duell still statt zu warten.
+   */
+  constructor(
+    stored: StoredRoute,
+    opponent: Opponent,
+    sectionBests: readonly (number | null)[] = [],
+    { challenge = false } = {},
+  ) {
     this.stored = stored;
     this.opponent = opponent;
     this.ghost = opponent.ghost;
@@ -70,6 +82,11 @@ export class Duel {
     this.ghostPos = pointAt(this.route, 0);
     this.sections = sectionBounds(this.route.length);
     this.sectionTimer = new SectionTimer(this.sections, sectionBests);
+    this.abandon = challenge ? new ChallengeAbandon() : null;
+  }
+
+  get challenge() {
+    return this.abandon != null;
   }
 
   /** Tempo des Ghosts an meiner Stelle (m/s) */
@@ -84,10 +101,15 @@ export class Duel {
 
   /** Nimmt einen Punkt der Fahrt auf und liefert die Ereignisse, auf die ein Ton folgt. */
   push(s: MotionSample): Cue[] {
-    if (this.phase === 'finished') return [];
+    if (this.phase === 'finished' || this.phase === 'abandoned') return [];
     const r = this.progress.push(s);
     if (!r) {
       this.toStart = this.route.points.length ? distanceM(s, this.route.points[0]) : null;
+      if (this.abandon?.push({ t: s.t, toStart: this.toStart, onRoute: false, offset: Infinity })) this.end();
+      return [];
+    }
+    if (this.abandon?.push({ t: s.t, toStart: null, onRoute: r.onRoute, offset: r.offset })) {
+      this.end();
       return [];
     }
     this.phase = 'racing';
@@ -124,5 +146,10 @@ export class Duel {
         won: this.time < this.opponent.time,
       }),
     ];
+  }
+
+  private end() {
+    this.phase = 'abandoned';
+    this.tickMs = null;
   }
 }

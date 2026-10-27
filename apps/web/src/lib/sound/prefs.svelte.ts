@@ -3,7 +3,7 @@ import type { CueKind } from '@rechase/core';
 const KEY = 'rechase.sound';
 
 /** Klänge, die man einzeln abschalten kann */
-export type SoundGroup = 'overtake' | 'close' | 'km' | 'countdown' | 'section' | 'finish' | 'pause';
+export type SoundGroup = 'overtake' | 'close' | 'km' | 'countdown' | 'section' | 'finish' | 'pause' | 'challenge';
 
 export const SOUND_GROUPS: { id: SoundGroup; label: string }[] = [
   { id: 'overtake', label: 'Überholen und überholt werden' },
@@ -13,6 +13,7 @@ export const SOUND_GROUPS: { id: SoundGroup; label: string }[] = [
   { id: 'section', label: 'Abschnitt geschafft und Abschnitts-PR' },
   { id: 'finish', label: 'Ziel erreicht' },
   { id: 'pause', label: 'Auto-Pause an und aus' },
+  { id: 'challenge', label: 'Duell-Angebot unterwegs und Start' },
 ];
 
 export const groupOf = (k: CueKind | 'tick'): SoundGroup =>
