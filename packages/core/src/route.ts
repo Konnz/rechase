@@ -254,3 +254,55 @@ export class GapTrend {
     return ((seconds - first.seconds) / span) * 1000;
   }
 }
+
+/** Höhe entlang der Strecke, geglättet. */
+export interface ElevationProfile {
+  /** Streng steigend, in m */
+  distance: number[];
+  /** Höhe in m */
+  alt: number[];
+}
+
+/** Höhenprofil der Strecke aus einer gefahrenen Fahrt; GPS-Rauschen wird über smoothM gemittelt. */
+export function elevationProfile(
+  route: Route,
+  samples: readonly (LatLon & { t: number; movingTime: number; speed: number; alt?: number | null })[],
+  smoothM = 60,
+): ElevationProfile | null {
+  const progress = new RouteProgress(route);
+  const raw: { d: number; alt: number }[] = [];
+  for (const s of samples) {
+    const r = progress.push(s);
+    if (!r?.onRoute || s.alt == null) continue;
+    if (!raw.length || r.along > raw[raw.length - 1].d) raw.push({ d: r.along, alt: s.alt });
+  }
+  if (raw.length < 2) return null;
+  const distance: number[] = [];
+  const alt: number[] = [];
+  let lo = 0;
+  let hi = 0;
+  let sum = 0;
+  for (const p of raw) {
+    while (hi < raw.length && raw[hi].d <= p.d + smoothM / 2) sum += raw[hi++].alt;
+    while (raw[lo].d < p.d - smoothM / 2) sum -= raw[lo++].alt;
+    distance.push(p.d);
+    alt.push(sum / (hi - lo));
+  }
+  return { distance, alt };
+}
+
+/** Höhe an der Stelle d, am Rand begrenzt. */
+export function altitudeAt(p: ElevationProfile, d: number): number {
+  const { distance: xs, alt: ys } = p;
+  const n = xs.length;
+  if (d <= xs[0]) return ys[0];
+  if (d >= xs[n - 1]) return ys[n - 1];
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (xs[mid] <= d) lo = mid;
+    else hi = mid;
+  }
+  return ys[lo] + ((d - xs[lo]) / (xs[hi] - xs[lo])) * (ys[hi] - ys[lo]);
+}
