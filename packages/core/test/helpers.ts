@@ -9,3 +9,25 @@ export function ride(speedsKmh: number[], { start = 0, accuracy = 5, withSpeed =
     return { t: start + i * 1000, lat, lon: 11.58, accuracy, speed: withSpeed ? v / 3.6 : null };
   });
 }
+
+/**
+ * Liest die Punkte einer re:chase-GPX-Datei. Fehlen Geschwindigkeit und Genauigkeit (ältere Exporte),
+ * rechnet der Tracker die Geschwindigkeit aus den Positionen und die Genauigkeit gilt als gut.
+ */
+export function parseGpx(xml: string): TrackPoint[] {
+  const num = (s: string, tag: string) => {
+    const m = s.match(new RegExp(`<rc:${tag}>([-\\d.]+)</rc:${tag}>`));
+    return m ? Number(m[1]) : null;
+  };
+  return [...xml.matchAll(/<trkpt lat="([-\d.]+)" lon="([-\d.]+)">([\s\S]*?)<\/trkpt>/g)].map(([, lat, lon, body]) => {
+    const ele = body!.match(/<ele>([-\d.]+)<\/ele>/);
+    return {
+      t: Date.parse(body!.match(/<time>([^<]+)<\/time>/)![1]!),
+      lat: Number(lat),
+      lon: Number(lon),
+      alt: ele ? Number(ele[1]) : null,
+      speed: num(body!, 'gnssSpeed'),
+      accuracy: num(body!, 'accuracy') ?? 5,
+    };
+  });
+}

@@ -22,8 +22,14 @@ export interface RideStats {
   maxAlt: number | null;
 }
 
-/** So viele Punkte werden für die Höchstgeschwindigkeit gemittelt (bei 1 Hz also 5 s). */
-const TOP_SPEED_WINDOW = 5;
+/** Über dieses Zeitfenster (ms) wird die Höchstgeschwindigkeit gemittelt. Android liefert Punkte unregelmäßig. */
+const TOP_SPEED_WINDOW_MS = 5000;
+/**
+ * Schneller kann ein Rad nicht beschleunigen (m/s²), Bremsen geht deutlich kräftiger.
+ * GPS-Sprünge in der Stadt täuschen sonst für einige Sekunden 50 km/h vor.
+ */
+const MAX_ACCEL = 1.5;
+const MAX_DECEL = 5;
 /** GPS-Höhe rauscht um einige Meter: erst über so viele Punkte mitteln, dann zählt erst diese Änderung. */
 const ALT_WINDOW = 9;
 const ALT_THRESHOLD_M = 3;
@@ -38,17 +44,7 @@ export function rideStats(samples: readonly MotionSample[]): RideStats {
   let stops = 0;
   for (let i = 1; i < samples.length; i++) if (samples[i - 1]!.moving && !samples[i]!.moving) stops++;
 
-  const moving = samples.filter((s) => s.moving);
-  let topSpeed = 0;
-  if (moving.length) {
-    const n = Math.min(TOP_SPEED_WINDOW, moving.length);
-    let sum = 0;
-    for (let i = 0; i < moving.length; i++) {
-      sum += moving[i]!.speed;
-      if (i >= n) sum -= moving[i - n]!.speed;
-      if (i >= n - 1) topSpeed = Math.max(topSpeed, sum / n);
-    }
-  }
+  const topSpeed = topSpeedOf(samples);
 
   const raw = samples.map((s) => s.alt).filter((a): a is number => a != null && Number.isFinite(a));
   const half = ALT_WINDOW >> 1;
@@ -86,6 +82,57 @@ export function rideStats(samples: readonly MotionSample[]): RideStats {
     minAlt: alts.length ? Math.min(...alts) : null,
     maxAlt: alts.length ? Math.max(...alts) : null,
   };
+}
+
+/** Höchstes Mittel über TOP_SPEED_WINDOW_MS, nach Begrenzung auf physikalisch mögliche Beschleunigung. */
+function topSpeedOf(samples: readonly MotionSample[]): number {
+  // Je zusammenhängender Fahrabschnitt (zwischen zwei Pausen) getrennt begrenzen und mitteln
+  let top = 0;
+  let run: MotionSample[] = [];
+  const flush = () => {
+    if (run.length) top = Math.max(top, windowMax(plausibleSpeeds(run), run));
+    run = [];
+  };
+  for (const s of samples) {
+    if (s.moving) run.push(s);
+    else flush();
+  }
+  flush();
+  return top;
+}
+
+function plausibleSpeeds(run: readonly MotionSample[]): number[] {
+  const v = run.map((s) => s.speed);
+  for (let i = 1; i < v.length; i++) {
+    // Nach einer Empfangslücke holt die Position den Weg auf einmal nach; dort zählt höchstens 1 s Beschleunigung
+    const dt = Math.min(1, (run[i]!.t - run[i - 1]!.t) / 1000);
+    v[i] = Math.min(v[i]!, v[i - 1]! + MAX_ACCEL * dt);
+  }
+  // Rückwärts: ein Wert darf nicht schneller abfallen, als man bremsen kann, sonst ist er eine Spitze
+  for (let i = v.length - 2; i >= 0; i--) {
+    const dt = (run[i + 1]!.t - run[i]!.t) / 1000;
+    v[i] = Math.min(v[i]!, v[i + 1]! + MAX_DECEL * dt);
+  }
+  return v;
+}
+
+function windowMax(v: readonly number[], run: readonly MotionSample[]): number {
+  // Zeitgewichtetes Mittel über ein gleitendes Fenster; kürzere Abschnitte zählen als Ganzes
+  const span = run.at(-1)!.t - run[0]!.t;
+  if (span < TOP_SPEED_WINDOW_MS) return v.reduce((s, x) => s + x, 0) / v.length;
+  let best = 0;
+  let j = 0;
+  let area = 0;
+  for (let i = 1; i < run.length; i++) {
+    area += ((v[i]! + v[i - 1]!) / 2) * (run[i]!.t - run[i - 1]!.t);
+    while (run[i]!.t - run[j + 1]!.t >= TOP_SPEED_WINDOW_MS) {
+      area -= ((v[j + 1]! + v[j]!) / 2) * (run[j + 1]!.t - run[j]!.t);
+      j++;
+    }
+    const w = run[i]!.t - run[j]!.t;
+    if (w >= TOP_SPEED_WINDOW_MS) best = Math.max(best, area / w);
+  }
+  return best;
 }
 
 export interface SpeedSegment {

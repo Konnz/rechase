@@ -58,6 +58,7 @@ Größe: grobe Schätzung in T-Shirt-Größen (S/M/L/XL).
 | E1-5 | Als Fahrer will ich, dass die Fahrt laufend gespeichert wird, damit ein Absturz oder Reload nichts verliert. | M | S |
 | E1-6 | Als Fahrer will ich, dass der Bildschirm während der Fahrt an bleibt (Wake Lock, automatisch neu angefordert). | M | S |
 | E1-7 | Als Fahrer will ich einen Hinweis, wenn Tracking unterbrochen wurde (z. B. Bildschirm gesperrt). | M | S |
+| E1-8 | Als Fahrer will ich die Höhe über dem Meeresspiegel sehen. Der Browser liefert die Höhe über dem WGS84-Ellipsoid, in NRW rund 47 m zu hoch (Probefahrt 27.10.: Anzeige 97 m statt etwa 50 m). Korrektur per Geoid-Tabelle oder Höhe aus dem Copernicus-Höhenmodell. | S | M |
 
 ### Epic E2: Faire Auto-Pause (USP)
 | ID | Story | Prio | Größe |

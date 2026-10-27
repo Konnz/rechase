@@ -26,6 +26,17 @@ describe('rideStats', () => {
     expect(rideStats(track(ride(speeds))).topSpeed * 3.6).toBeLessThan(45);
   });
 
+  it('begrenzt die Höchstgeschwindigkeit bei einem GPS-Sprung über mehrere Punkte', () => {
+    // Position springt für 4 s nach vorn: 50 km/h bei 20 km/h Fahrt
+    const speeds = [...Array(30).fill(20), 50, 50, 50, 50, ...Array(30).fill(20)];
+    expect(rideStats(track(ride(speeds))).topSpeed * 3.6).toBeLessThan(32);
+  });
+
+  it('erreicht die Höchstgeschwindigkeit bei echter Beschleunigung', () => {
+    const speeds = [0, ...Array.from({ length: 40 }, (_, i) => Math.min(45, 10 + i * 3)), ...Array(10).fill(45)];
+    expect(rideStats(track(ride(speeds))).topSpeed * 3.6).toBeGreaterThan(44);
+  });
+
   it('zählt Höhenmeter mit Schwelle gegen GPS-Rauschen', () => {
     const pts = ride(Array(200).fill(25)).map((p, i) => ({
       ...p,

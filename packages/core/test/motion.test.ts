@@ -31,7 +31,7 @@ describe('MotionTracker', () => {
     // Bremsen wie es das GPS meldet, dann Stillstand
     const m = new MotionTracker();
     const pts = ride([0, ...Array(20).fill(25), 15, 6, 1, 0, 0, 0]);
-    const states = pts.map((p) => m.push(p)!.moving);
+    const states = pts.map((p) => m.push(p)?.moving);
     // Index 23 ist der erste Punkt fast im Stand
     expect(states[22]).toBe(true);
     expect(states[23]).toBe(false);
@@ -82,6 +82,27 @@ describe('MotionTracker', () => {
     const m = run(ride([0, 36, 36, 36], { withSpeed: false }));
     expect(m.current!.speed).toBeCloseTo(10, 1);
     expect(m.current!.moving).toBe(true);
+  });
+
+  it('überspringt eine wiederholte alte Position und nimmt den Weg danach ohne Sprung', () => {
+    const m = new MotionTracker();
+    const pts = ride([0, ...Array(10).fill(25)], { withSpeed: false });
+    pts.slice(0, 6).forEach((p) => m.push(p));
+    // Alter Fix mit neuem Zeitstempel, danach der echte nächste Punkt
+    expect(m.push({ ...pts[5]!, t: pts[5]!.t + 500 })).toBeNull();
+    expect(m.stale).toBe(1);
+    const next = m.push(pts[6]!)!;
+    expect(next.moving).toBe(true);
+    expect(next.speed * 3.6).toBeCloseTo(25, 0);
+  });
+
+  it('pausiert ohne GNSS-Geschwindigkeit nicht wegen Positionsrauschen', () => {
+    // 20 km/h mit ±3 m seitlichem Rauschen: von Punkt zu Punkt schwankt das Tempo stark
+    const m = new MotionTracker();
+    const states = ride([0, ...Array(60).fill(20)], { withSpeed: false }).map((p, i) =>
+      m.push({ ...p, lon: p.lon + (i % 3 === 0 ? 0.00004 : -0.00002) * (i % 2 ? 1 : -1) }),
+    );
+    expect(states.slice(5).every((s) => s!.moving)).toBe(true);
   });
 
   it('erkennt Lücken in der Aufzeichnung', () => {
