@@ -1,4 +1,5 @@
-import { MotionTracker, type MotionSample, type TrackPoint } from '@rechase/core';
+import { MotionTracker, type Geoid, type MotionSample, type TrackPoint } from '@rechase/core';
+import { altitudeIsEllipsoidal, loadGeoid } from './altitude.ts';
 import { saveRide, type StoredRide } from './db.ts';
 import type { Duel } from './duel.svelte.ts';
 import type { LatLon } from './map/LiveMap.svelte';
@@ -60,6 +61,8 @@ export class RideRecorder {
   private persistRide = true;
   private lock: WakeLockSentinel | null = null;
   private lastSave = 0;
+  /** Rechnet die Höhe vom Ellipsoid auf den Meeresspiegel um, null wenn nicht nötig oder nicht möglich */
+  private geoid: Geoid | null = null;
 
   async start({ duel, source, persist = true }: StartOptions = {}) {
     if (!source && !('geolocation' in navigator)) {
@@ -76,6 +79,8 @@ export class RideRecorder {
     this.simulated = !!source;
     this.persistRide = persist;
     this.hiddenCount = this.gaps = this.rejected = this.points = 0;
+    // Simulierte Fahrten spielen schon umgerechnete Höhen ab
+    this.geoid = !source && altitudeIsEllipsoidal() ? await loadGeoid() : null;
     this.ride = {
       id: crypto.randomUUID(),
       startedAt: Date.now(),
@@ -85,6 +90,7 @@ export class RideRecorder {
       gaps: 0,
       rejected: 0,
       userAgent: navigator.userAgent,
+      ...(source ? {} : { altitudeRef: this.geoid || !altitudeIsEllipsoidal() ? 'msl' : 'ellipsoid' }),
       ...(duel ? { routeId: duel.stored.id } : {}),
     };
 
@@ -119,7 +125,7 @@ export class RideRecorder {
       t: pos.timestamp,
       lat: c.latitude,
       lon: c.longitude,
-      alt: c.altitude,
+      alt: c.altitude != null && this.geoid ? this.geoid.toMsl(c.latitude, c.longitude, c.altitude) : c.altitude,
       speed: c.speed,
       accuracy: c.accuracy,
     };

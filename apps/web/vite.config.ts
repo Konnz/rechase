@@ -25,7 +25,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,bin}'],
         navigateFallbackDenylist: [/^\/healthz/, /^\/api\//],
         // Gesehene Kartenkacheln bleiben im Cache, damit die Karte im Funkloch weitergeht.
         runtimeCaching: [
