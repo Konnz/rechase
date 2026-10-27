@@ -111,6 +111,24 @@ const toUser = (r: UserRow): User => ({
   testConsentAt: r.test_consent_at,
 });
 
+interface RideDbRow {
+  id: string;
+  user_id: string;
+  started_at: number;
+  ended_at: number | null;
+  uploaded_at: number;
+  summary: string;
+}
+
+const toRide = (r: RideDbRow): RideRow => ({
+  id: r.id,
+  userId: r.user_id,
+  startedAt: r.started_at,
+  endedAt: r.ended_at,
+  uploadedAt: r.uploaded_at,
+  summary: JSON.parse(r.summary) as RideSummary,
+});
+
 export type Store = ReturnType<typeof openStore>;
 
 /** Öffnet die Datenbank (":memory:" für Tests) und bringt das Schema auf den neuesten Stand. */
@@ -162,6 +180,16 @@ export function openStore(path: string, now: () => number = Date.now) {
     ),
     deleteRidesOf: db.prepare('DELETE FROM rides WHERE user_id = ?'),
     countRidesOf: db.prepare('SELECT COUNT(*) AS n FROM rides WHERE user_id = ?'),
+    ridesOf: db.prepare(
+      'SELECT id, user_id, started_at, ended_at, uploaded_at, summary FROM rides WHERE user_id = ? ORDER BY started_at DESC',
+    ),
+    allRides: db.prepare('SELECT id, user_id, started_at, ended_at, uploaded_at, summary FROM rides ORDER BY started_at DESC'),
+    ride: db.prepare('SELECT id, user_id, started_at, ended_at, uploaded_at, summary FROM rides WHERE id = ?'),
+    rideData: db.prepare('SELECT data FROM rides WHERE id = ?'),
+    testers: db.prepare(
+      `SELECT * FROM users WHERE test_consent_at IS NOT NULL OR id IN (SELECT DISTINCT user_id FROM rides)
+       ORDER BY created_at`,
+    ),
   };
 
   function transaction<T>(fn: () => T): T {
@@ -246,6 +274,31 @@ export function openStore(path: string, now: () => number = Date.now) {
 
     deleteRidesOf(userId: string) {
       q.deleteRidesOf.run(userId);
+    },
+
+    /** Hochgeladene Fahrten eines Kontos, die neueste zuerst */
+    ridesOf(userId: string): RideRow[] {
+      return (q.ridesOf.all(userId) as unknown as RideDbRow[]).map(toRide);
+    },
+
+    /** Alle hochgeladenen Fahrten ohne Punkte, die neueste zuerst */
+    allRides(): RideRow[] {
+      return (q.allRides.all() as unknown as RideDbRow[]).map(toRide);
+    },
+
+    ride(id: string): RideRow | null {
+      const row = q.ride.get(id) as RideDbRow | undefined;
+      return row ? toRide(row) : null;
+    },
+
+    /** Die ganze Fahrt als gzip-JSON */
+    rideData(id: string): Uint8Array | null {
+      return (q.rideData.get(id) as { data: Uint8Array } | undefined)?.data ?? null;
+    },
+
+    /** Konten im Feldtest: eingewilligt oder mit hochgeladenen Fahrten */
+    testers(): User[] {
+      return (q.testers.all() as unknown as UserRow[]).map(toUser);
     },
 
     countRides(userId: string): number {

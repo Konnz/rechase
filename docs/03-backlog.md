@@ -180,11 +180,11 @@ Damit der Feldtest mit 5–10 Fahrern etwas bringt, müssen ihre Fahrten beim Te
 |---|---|---|---|
 | E22-1 | ✅ Als Tester will ich ausdrücklich einwilligen, dass meine Fahrten für die Testphase hochgeladen und vom Team angesehen werden; die Einwilligung kann ich jederzeit zurückziehen. | M | S |
 | E22-2 | ✅ (gzip-JSON in SQLite; ohne Netz geht die Fahrt beim nächsten Öffnen oder Online-Werden hoch) Als Tester will ich, dass beendete Fahrten automatisch hochgeladen werden (bei schlechtem Netz später nachgeholt), samt Rohpunkten, Auto-Pausen, Lücken, Gerät und Browser. | M | M |
-| E22-3 | Als Admin will ich mich mit meinem normalen Konto anmelden und über eine **Admin-Rolle** (per Env-Variable `ADMIN_EMAILS` vergeben) einen geschützten Bereich unter `/admin` öffnen. | M | S |
-| E22-4 | Als Admin will ich eine **Liste der Tester** sehen (Name, Rad, Gerät, Anzahl Fahrten, letzte Fahrt) und je Tester seine Fahrten. | M | M |
-| E22-5 | Als Admin will ich eine **Fahrt auf der Karte** sehen: Spur, Pausen, GPS-Lücken, verworfene Punkte, Tempo- und Genauigkeitsverlauf, Ergebnis gegen den Ghost. | M | L |
-| E22-6 | Als Admin will ich ein **Dashboard** mit Kennzahlen: aktive Tester pro Woche, Fahrten und Kilometer, Duelle und Siegquote, Anteil Fahrten mit Lücken, mittlere GPS-Genauigkeit, Akku pro Stunde (wo messbar), auffällige Fahrten, Aufteilung nach Gerät und Browser. | M | M |
-| E22-7 | Als Admin will ich Fahrten als GPX/CSV herunterladen, um Fehler nachzustellen (z. B. im Simulator Q-2). | S | S |
+| E22-3 | ✅ Als Admin will ich mich mit meinem normalen Konto anmelden und über eine **Admin-Rolle** (per Env-Variable `ADMIN_EMAILS` vergeben) einen geschützten Bereich unter `/admin` öffnen. | M | S |
+| E22-4 | ✅ Als Admin will ich eine **Liste der Tester** sehen (Name, Rad, Gerät, Anzahl Fahrten, letzte Fahrt) und je Tester seine Fahrten. | M | M |
+| E22-5 | ✅ (Tempo- und Genauigkeitsverlauf als Diagramm, Maus darüber zeigt die Stelle auf der Karte) Als Admin will ich eine **Fahrt auf der Karte** sehen: Spur, Pausen, GPS-Lücken, verworfene Punkte, Tempo- und Genauigkeitsverlauf, Ergebnis gegen den Ghost. | M | L |
+| E22-6 | ✅ Als Admin will ich ein **Dashboard** mit Kennzahlen: aktive Tester pro Woche, Fahrten und Kilometer, Duelle und Siegquote, Anteil Fahrten mit Lücken, mittlere GPS-Genauigkeit, Akku pro Stunde (wo messbar), auffällige Fahrten, Aufteilung nach Gerät und Browser. | M | M |
+| E22-7 | ✅ Als Admin will ich Fahrten als GPX/CSV herunterladen, um Fehler nachzustellen (z. B. im Simulator Q-2). | S | S |
 | E22-8 | Als Admin will ich Widersprüche gegen die Cheating-Erkennung (E21-2) prüfen und eine Fahrt freigeben oder ablehnen. | S | M |
 | E22-9 | Als Admin will ich Konten sperren oder löschen und Tester-Daten nach Ende der Testphase gesammelt löschen. | S | S |
 

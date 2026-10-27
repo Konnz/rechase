@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createAccounts, type GoogleConfig } from './accounts.ts';
+import { createAdmin } from './admin.ts';
 import { createPinGate } from './pin.ts';
 import { createRides } from './rides.ts';
 import type { Store } from './store.ts';
@@ -36,14 +37,17 @@ export interface AppOptions {
   store?: Store;
   google?: GoogleConfig;
   publicUrl?: string;
+  /** E-Mail-Adressen mit Zugang zum Adminbereich */
+  adminEmails?: readonly string[];
 }
 
 /** Liefert die gebaute PWA aus und beantwortet die API unter /api. */
-export function createApp({ publicDir, version, pin, store, google, publicUrl }: AppOptions) {
+export function createApp({ publicDir, version, pin, store, google, publicUrl, adminEmails }: AppOptions) {
   const root = resolve(publicDir);
   const gate = pin ? createPinGate(pin) : null;
-  const accounts = store ? createAccounts({ store, google, publicUrl }) : null;
+  const accounts = store ? createAccounts({ store, google, publicUrl, adminEmails }) : null;
   const rides = store && accounts ? createRides({ store, accounts }) : null;
+  const admin = store && accounts ? createAdmin({ store, accounts }) : null;
 
   async function sendFile(res: ServerResponse, path: string, cache: string) {
     const info = await stat(path).catch(() => null);
@@ -71,6 +75,7 @@ export function createApp({ publicDir, version, pin, store, google, publicUrl }:
 
     if (accounts && (await accounts.handle(req, res, url))) return;
     if (rides && (await rides.handle(req, res, url))) return;
+    if (admin && (await admin.handle(req, res, url))) return;
     if (url.pathname.startsWith('/api/')) {
       res.writeHead(404, { 'Content-Type': 'application/json' }).end('{"error":"Keine API"}');
       return;
